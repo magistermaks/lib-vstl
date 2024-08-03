@@ -1,7 +1,7 @@
 ## VSTL
 Very Simple Test Library
 
-```
+```c++
 #include "vstl.hpp"
 
 BEGIN(VSTL_MODE_LENIENT)
