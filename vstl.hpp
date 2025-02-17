@@ -266,8 +266,8 @@ namespace vstl {
 
 	#ifdef _WIN32
 	void signal_handler(int sig) {
-		printf("Test '%s' " VSTL_FAILED "! Error: Received SIGSEGV!", tests[test_id].name);
-		siglongjmp(vstl::jmp, 1);
+		printf("Test '%s' " VSTL_FAILED "! Error: Received SIGSEGV!\n", tests[test_id].name);
+		longjmp(vstl::jmp, 1);
 	}
 	#else
 	void signal_handler(int sig, siginfo_t* si, void* unused) {
@@ -279,7 +279,7 @@ namespace vstl {
 	int run(std::ostream& out, TestMode mode) {
 
 		#ifdef _WIN32
-			signal(SIGSEGV, signal_handler)
+			signal(SIGSEGV, signal_handler);
 		#else
 			struct sigaction action;
 			action.sa_flags = SA_SIGINFO;
@@ -295,7 +295,11 @@ namespace vstl {
 		const auto start = std::chrono::steady_clock::now();
 
 		for (const Test& test : tests) {
+			#ifdef _WIN32
+			if (setjmp(jmp)) {
+			#else
 			if (sigsetjmp(jmp, 1)) {
+			#endif
 				failed ++;
 				goto skip;
 			}
