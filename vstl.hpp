@@ -2,7 +2,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2020 - 2024 magistermaks
+ * Copyright (c) 2020 - 2025 magistermaks
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,20 +28,63 @@
  *
  * This library uses an single header that should be included into each test unit (program).
  * This library uses C++20 features, and can't be used on older C++ versions, see demo.cpp for reference.
+ *
+ * 1) Settings
+ *
+ *    The following settings can be configured with #define directives placed before
+ *    the inclusion of VSTL, the listing shows the default values of all available options.
+ *
+ *    #define VSTL_TEST_COUNT 1            - Number of times each test should be invoked, each invocations needs to succeed for the test to be passed
+ *    #define VSTL_USE_ANSI true           - Should VSTL use ANSI escape codes to show colored output?
+ *    #define VSTL_TRIGGER_DEBUGGER true   - Should VSTL try to trigger the debugger (when attached) when a assertion fails?
+ *    #define VSTL_PRINT_SKIP_REASON false - Should VSTL print the messages given to SKIP()?
+ *    #define VSTL_PRINT_SUCCESS true      - Should VSTL print a log entry when the test is successful?
+ *
  */
 
 #pragma once
 
+/// Number of times each test should be run before declaring it a success
 #ifndef VSTL_TEST_COUNT
 #	define VSTL_TEST_COUNT 1
 #endif
 
-#ifdef VSTL_NO_COLOR
-#	define VSTL_FAILED "failed"
-#	define VSTL_SUCCESSFUL "successful"
-#else
+/// Should we try to automatically trigger the debugger when an assertion fails?
+#ifndef VSTL_TRIGGER_DEBUGGER
+#	define VSTL_TRIGGER_DEBUGGER true
+#endif
+
+/// Should VSTL print the messages given to SKIP()?
+#ifndef VSTL_PRINT_SKIP_REASON
+#	define VSTL_PRINT_SKIP_REASON false
+#endif
+
+/// Should VSTL print a log entry when the test is successful?
+#ifndef VSTL_PRINT_SUCCESS
+#	define VSTL_PRINT_SUCCESS true
+#endif
+
+/// Should VSTL use ANSI escape codes to show colored output?
+#ifndef VSTL_USE_ANSI
+#	define VSTL_USE_ANSI true
+#endif
+
+#if VSTL_USE_ANSI
 #	define VSTL_FAILED "\033[31;1mfailed\033[0m"
+#	define VSTL_SKIPPED "\033[33;1mskipped\033[0m"
 #	define VSTL_SUCCESSFUL "\033[32;1msuccessful\033[0m"
+#else
+#	define VSTL_FAILED "failed"
+#	define VSTL_SKIPPED "skipped"
+#	define VSTL_SUCCESSFUL "successful"
+#endif
+
+#ifdef _WIN32
+#	define VSTL_JMP_SIG(jmp) longjmp(jmp, 1)
+#	define VSTL_JMP_SET(jmp) setjmp(jmp)
+#else
+#	define VSTL_JMP_SIG(jmp) siglongjmp(jmp, 1)
+#	define VSTL_JMP_SET(jmp) sigsetjmp(jmp, 0xffffffff)
 #endif
 
 #include <csignal>
@@ -53,7 +96,7 @@
 #include <iostream>
 #include <sstream>
 
-#define VSTL_VERSION "3.1"
+#define VSTL_VERSION "3.3"
 
 // internal macros, don't use :gun:
 #define VSTL_UNEQUAL(va, vb) for(auto __vstl_a__ = (va), __vstl_b__ = (decltype(__vstl_a__)) (vb); __vstl_a__ != __vstl_b__;)
@@ -68,17 +111,13 @@
 #define VSTL_RETHROW catch (vstl::test_error& fail) { throw fail; }
 #define VSTL_VTOS(value) + vstl::to_printable(value) +
 
-/// used to define a test of the given [name]: TEST(example_test) { /* the test */ }
+/// define a test of the given [name]: TEST(example_test) { /* the test */ }
 #define TEST(name) \
-VSTL_BLC  vstl::Test VSTL_UNIQUE(__vstl_test__) = #name+[] ()
-
-/// used as a starting point for the VSTL, place anywhere in the test file, preferably at the end: BEGIN(VSTL_MODE_LENIENT)
-#define BEGIN(mode) \
-VSTL_BLC  int main() { return vstl::run(std::cout, mode); }
+VSTL_BLC vstl::test VSTL_UNIQUE(__vstl_test__) = #name+[] ()
 
 /// used to defined error handlers (converters), place anywhere in the test file. use like this: HANDLER { CATCH_PTR (my_error_class& err) { FAIL(err.str())  } }
 #define HANDLER \
-VSTL_BLC  vstl::Handler VSTL_UNIQUE(__vstl_handler__) = "handler"+[] (std::exception_ptr ptr)
+VSTL_BLC vstl::handler VSTL_UNIQUE(__vstl_handler__) = "handler"+[] (std::exception_ptr ptr)
 
 /// helper used in defining error handlers
 #define CATCH_PTR \
@@ -87,6 +126,10 @@ try { if(ptr) std::rethrow_exception(ptr); } catch
 /// fails the test with the given [reason] when called
 #define FAIL(reason) \
 vstl::fail("" VSTL_VTOS(reason) ", " VSTL_LINE "!");
+
+/// skip the test with the given [reason] when called
+#define SKIP(reason) \
+vstl::skip("" VSTL_VTOS(reason) ", " VSTL_LINE "!");
 
 /// asserts the [condition] is true, otherwise fails the test with the custom [reason]
 #define ASSERT_MSG(condition, reason) \
@@ -105,20 +148,18 @@ VSTL_UNEQUAL(va, vb) FAIL("Expected " VSTL_VTOS(__vstl_a__) " to be equal " VSTL
 try { __VA_ARGS__; FAIL(VSTL_EXCEPT); } VSTL_RETHROW catch (...) {}
 
 /// checks if the given block [...] throws an exception of the given [type], otherwise fails the test
-#define EXPECT(type, ...) \
-try{ __VA_ARGS__; FAIL(VSTL_EXCEPT); } VSTL_RETHROW catch (type& t) {} catch (...) { FAIL("Expected exception of type " #type); }
+#define EXPECT_THROW(type, ...) \
+try { __VA_ARGS__; FAIL(VSTL_EXCEPT); } VSTL_RETHROW catch (type& t) {} catch (...) { FAIL("Expected exception of type " #type); }
 
-enum TestMode : short {
+/// assert signal being raised
+#define EXPECT_SIGNAL(signum, ...) \
+vstl::expected_signal = signum; if (VSTL_JMP_SET(vstl::expect_jmp) == 0) { __VA_ARGS__; FAIL("Expected signal " #signum " " VSTL_LINE "!"); }
 
-	/// will skip failed tests
-	VSTL_MODE_LENIENT,
+/// set test timeout
+#define TIMEOUT(seconds) \
+alarm(seconds); vstl::fail_on_alarm = true;
 
-	/// will stop as soon any any test fails
-	VSTL_MODE_STRICT
-
-};
-
-// internal namespace, don't use :gun:
+// internal VSTL namespace, don't use :gun:
 namespace vstl {
 
 
@@ -129,13 +170,13 @@ namespace vstl {
 	 */
 
 	template <typename T>
-	concept ConvertibleToStdString = requires(T value){ std::to_string(value); };
+	concept string_convertible = requires(T value) { std::to_string(value); };
 
 	template <typename T>
-	concept CastableToStdString = std::convertible_to<T, std::string>;
+	concept string_castable = std::convertible_to<T, std::string>;
 
 	template <typename T>
-	concept AppendableToStdStringStream = requires(T value, std::stringstream ss){ ss << value; } && !ConvertibleToStdString<T> && !CastableToStdString<T>;
+	concept string_appendable = requires(T value, std::stringstream ss) { ss << value; } && !string_convertible<T> && !string_castable<T>;
 
 
 
@@ -149,57 +190,75 @@ namespace vstl {
 		return "<non-printable value>";
 	}
 
-	template <ConvertibleToStdString T>
+	template <string_convertible T>
 	std::string to_printable(const T& value) {
 		return std::to_string(value);
 	}
 
-	template <CastableToStdString T>
+	template <string_castable T>
 	std::string to_printable(const T& value) {
 		return value;
 	}
 
-	template <AppendableToStdStringStream T>
+	template <string_appendable T>
 	std::string to_printable(const T& value) {
 		std::stringstream ss;
 		ss << value;
 		return ss.str();
 	}
 
-	struct Test;
-	struct Handler;
 
-	std::vector<Test> tests;
-	std::vector<Handler> handlers;
-	size_t test_id = 0, failed = 0, successful = 0;
-	jmp_buf jmp;
 
-	/// add new test
-	void add_test(const Test& test) {
-		tests.push_back(test);
-	}
+	struct test;
+	struct handler;
 
-	/// add new error handler
-	void add_handler(const Handler& handler) {
-		handlers.push_back(handler);
-	}
+	/// index of the current test, needed by the signal handlers
+	size_t index = 0;
 
-	struct test_error final : std::runtime_error {
+	/// number of failed tests
+	size_t failed = 0;
 
-		explicit test_error(const std::string& error)
-		: runtime_error(error) {}
+	/// number of successful tests (includes skipped tests)
+	size_t successful = 0;
 
-	};
+	/// number of skipped tests
+	size_t skipped = 0;
 
-	struct Handler final {
+	/// jump buffer used to return out of signal handlers
+	jmp_buf jmp {};
 
-		using Func = std::function<void(std::exception_ptr)>;
+	/// should the test treat SIGALRM as an error condition
+	bool fail_on_alarm = false;
 
-		const Func func;
+	/// used by the EXPECT_SIGNAL block
+	int expected_signal = 0;
 
-		Handler(const Func& func)
+	/// used by the EXPECT_SIGNAL block, where to jump to when the expected signal comes
+	jmp_buf expect_jmp;
+
+	/// Exceptions used by VSTL assertions
+	struct test_error final : std::runtime_error { explicit test_error(const std::string& error) : runtime_error(error) {} };
+	struct test_skip final : std::runtime_error { explicit test_skip(const std::string& error) : runtime_error(error) {} };
+
+
+
+	/*
+	 * The handler class automatically registers itself to the handlers vector
+	 * upon construction, it contains logic to translate custom exceptions and print them
+	 */
+
+	// handler self-registers itself so it needs access to this
+	void append(const handler& handler);
+
+	struct handler final {
+
+		using functor = std::function<void(std::exception_ptr)>;
+
+		const functor func;
+
+		handler(const functor& func)
 		: func(func) {
-			vstl::add_handler(*this);
+			append(*this);
 		}
 
 		void call(std::exception_ptr ptr) const {
@@ -208,20 +267,46 @@ namespace vstl {
 
 	};
 
-	struct Test final {
+	/// error handlers, lambdas that can catch specific exceptions and rethrow them as vstl::test_error
+	std::vector<handler> handlers;
 
-		using Func = std::function<void(void)>;
+	/// called by handler constructor
+	void append(const handler& handler) {
+		handlers.emplace_back(handler);
+	}
+
+
+
+	/*
+	 * The test class automatically registers itself to the tests vector
+	 * upon construction, it contains the logic to handle excpetions but not signal
+	 */
+
+	// test self-registers itself so it needs access to this
+	void append(const test& test);
+
+	struct test final {
+
+		using functor = std::function<void()>;
 
 		const char* name;
-		const Func func;
+		const functor func;
 
-		Test(const char* name, const Func& func)
+		test(const char* name, const functor& func)
 		: name(name), func(func) {
-			vstl::add_test(*this);
+			append(*this);
 		}
 
 		void call(const size_t count) const {
 			for (size_t i = 0; i < count; i ++) {
+
+				// reset any pending alarm
+				alarm(0);
+
+				// reset test state per invocation
+				expected_signal = 0;
+				fail_on_alarm = false;
+
 				func();
 			}
 		}
@@ -229,22 +314,30 @@ namespace vstl {
 		bool run(std::ostream& out) const throw() {
 			try {
 				call(VSTL_TEST_COUNT);
+			} catch (test_skip& skip) {
+				out << "Test '" << this->name << "' " VSTL_SKIPPED "!";
+
+				if (VSTL_PRINT_SKIP_REASON) {
+					out << " " << skip.what();
+				}
+
+				skipped ++;
+				out << std::endl;
+				return true;
 
 			} catch (test_error& fail) {
 				out << "Test '" << this->name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
-				vstl::failed ++;
 				return false;
 
 			} catch (...) {
 				std::exception_ptr ptr = std::current_exception();
 
 				// try to convert the error using the defined error handlers
-				for (const Handler& handler : vstl::handlers) {
+				for (const handler& handler : handlers) {
 					try {
 						handler.call(ptr);
 					} catch(test_error& fail) {
 						out << "Test '" << this->name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
-						vstl::failed ++;
 						return false;
 					} catch (...) {
 						// ignore
@@ -265,30 +358,33 @@ namespace vstl {
 					out << "Error: unknown" << std::endl;
 				}
 
-				vstl::failed ++;
 				return false;
 			}
 
-			out << "Test '" << this->name << "' " VSTL_SUCCESSFUL "!" << std::endl;
-			vstl::successful ++;
+			if (VSTL_PRINT_SUCCESS) {
+				out << "Test '" << this->name << "' " VSTL_SUCCESSFUL "!" << std::endl;
+			}
 			return true;
 		}
 
 	};
 
-	void summary(std::ostream& out, const auto& time) {
-		size_t executed = vstl::failed + vstl::successful;
-		double millis = std::chrono::duration<double, std::milli>(time).count();
+	/// tests to execute
+	std::vector<test> tests;
 
-		out << std::endl << std::dec << "Executed " << executed << " ";
-		out << (executed == 1 ? "test" : "tests") << ", ";
-		out << vstl::failed << " failed, ";
-		out << vstl::successful << " succeeded.";
-		out << " (time: " << millis << "ms)";
-		out << std::endl;
+	/// called by test constructor
+	void append(const test& test) {
+		tests.emplace_back(test);
 	}
 
-	const char* signal_name(int sig) {
+
+
+	/*
+	 * signal handlers invoked by the harness, as we can't really pass any user data into them
+	 * we rely on there being only one test harness at a time - VSTL can only be included once per executable
+	 */
+
+	const char* get_signal_name(int sig) {
 		if (sig == SIGSEGV) return "SIGSEGV";
 		if (sig == SIGILL) return "SIGILL";
 		if (sig == SIGFPE) return "SIGFPE";
@@ -297,101 +393,193 @@ namespace vstl {
 		return "unknown signal";
 	}
 
-	#ifdef _WIN32
+	bool handle_shared_signal(int sig) {
+		if (sig == SIGALRM && fail_on_alarm) {
+			printf("Test '%s' " VSTL_FAILED "! Timeout reached!\n", tests[index].name);
+			return false; // skip default print
+		}
+
+		if (expected_signal == sig) {
+			expected_signal = 0;
+			VSTL_JMP_SIG(expect_jmp);
+		}
+
+		// all other cases, refer to print_signal()
+		return true;
+	}
+
+#ifdef _WIN32
 	void print_signal(const char* test, int sig) {
-		printf("Test '%s' " VSTL_FAILED "! Error: Received %s (#%d)!\n", test, signal_name(sig), sig);
+		printf("Test '%s' " VSTL_FAILED "! Error: Received %s (#%d)!\n", test, get_signal_name(sig), sig);
 	}
 
 	void signal_handler(int sig) {
-		print_signal(tests[test_id].name, sig);
-		longjmp(vstl::jmp, 1);
+		if (handle_shared_signal(sig)) {
+			print_signal(tests[index].name, sig);
+		}
+
+		VSTL_JMP_SIG(jmp);
 	}
-	#else
+#else
 	void print_signal(const char* test, int sig, int64_t address) {
-		printf("Test '%s' " VSTL_FAILED "! Error: Received %s (#%d) while trying to access: 0x%lx!\n", test, signal_name(sig), sig, address);
+		printf("Test '%s' " VSTL_FAILED "! Error: Received %s (#%d) while trying to access: 0x%lx!\n", test, get_signal_name(sig), sig, address);
 	}
 
 	void signal_handler(int sig, siginfo_t* si, void* unused) {
-		print_signal(tests[test_id].name, sig, reinterpret_cast<int64_t>(si->si_addr));
-		siglongjmp(vstl::jmp, 1);
+		if (handle_shared_signal(sig)) {
+			print_signal(tests[index].name, sig, reinterpret_cast<int64_t>(si->si_addr));
+		}
+
+		VSTL_JMP_SIG(jmp);
 	}
-	#endif
+#endif
 
-	int run(std::ostream& out, TestMode mode) {
 
-		#ifdef _WIN32
-			signal(SIGSEGV, signal_handler);
-			signal(SIGILL, signal_handler);
-			signal(SIGFPE, signal_handler);
-			signal(SIGTRAP, signal_handler);
-		#else
 
-			// custom stack to make VSTL more resilient if the stack
-			// pointer gets corrupted
-			stack_t stack;
-			stack.ss_sp = malloc(SIGSTKSZ);
-			stack.ss_size = SIGSTKSZ;
-			stack.ss_flags = 0;
-			sigaltstack(&stack, nullptr);
+	/*
+	 * core VSTL functions that handle test running, initialization
+	 * and result summarization
+	 */
 
-			// our signal action description
-			struct sigaction action;
-			action.sa_flags = SA_SIGINFO;
-			action.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
-			sigemptyset(&action.sa_mask);
-			action.sa_sigaction = signal_handler;
+	/// output a simple summary line
+	void summary(std::ostream& out, const auto& time) {
+		size_t executed = failed + successful;
+		double millis = std::chrono::duration<double, std::milli>(time).count();
 
-			// registers for all applicable signals
-			sigaction(SIGSEGV, &action, nullptr);
-			sigaction(SIGILL, &action, nullptr);
-			sigaction(SIGFPE, &action, nullptr);
-			sigaction(SIGTRAP, &action, nullptr);
-		#endif
+		out << std::endl << std::dec << "Executed " << executed << " ";
+		out << (executed == 1 ? "test" : "tests") << ", ";
+		out << failed << " failed, ";
+		out << (successful - skipped) << " succeeded.";
+		out << " (time: " << millis << "ms)";
+		out << std::endl;
+	}
 
+	void catch_signal(int signum) {
+#ifdef _WIN32
+		signal(signal, signal_handler);
+#else
+
+		// our signal action description
+		struct sigaction action;
+		action.sa_flags = SA_SIGINFO;
+		action.sa_flags = SA_SIGINFO | SA_NODEFER | SA_ONSTACK;
+		sigemptyset(&action.sa_mask);
+		action.sa_sigaction = signal_handler;
+
+		sigaction(signum, &action, nullptr);
+
+#endif
+	}
+
+	/// setup signal handlers
+	void init() {
+#ifndef _WIN32
+
+		// custom stack to make VSTL more resilient if the stack pointer gets corrupted
+		stack_t stack;
+		stack.ss_sp = malloc(SIGSTKSZ);
+		stack.ss_size = SIGSTKSZ;
+		stack.ss_flags = 0;
+		sigaltstack(&stack, nullptr);
+
+#endif
+
+		catch_signal(SIGSEGV);
+		catch_signal(SIGILL);
+		catch_signal(SIGFPE);
+		catch_signal(SIGALRM);
+
+		if (VSTL_TRIGGER_DEBUGGER) {
+			signal(SIGTRAP, SIG_IGN);
+		}
+
+	}
+
+	/// Invoke all tests
+	void run(std::ostream& out) {
 		const auto start = std::chrono::steady_clock::now();
 
-		for (const Test& test : tests) {
-			#ifdef _WIN32
-			if (setjmp(jmp)) {
-			#else
-			if (sigsetjmp(jmp, 0xffffffff)) {
-			#endif
+		index = 0;
+		successful = 0;
+		failed = 0;
+		skipped = 0;
+
+		for (const test& test : tests) {
+
+			// if we go into this if a signal was
+			// raised during test execution
+			if (VSTL_JMP_SET(jmp)) {
 				failed ++;
 				goto skip;
 			}
 
-			if (!test.run(out) && mode == VSTL_MODE_STRICT) {
-				break;
+			// if we enter this if an exception was
+			// thrown during test execution
+			if (!test.run(out)) {
+				failed ++;
+				goto skip;
 			}
 
+			// test completed successfully
+			successful ++;
+
 			skip:
-			test_id ++;
+			index ++;
 		}
 
 		summary(out, std::chrono::steady_clock::now() - start);
+	}
 
-		#ifdef VSTL_RETURN_ZERO
-		return 0;
-		#endif
-
-		#ifdef VSTL_RETURN_BOOL
-		return vstl::failed != 0 ? 1 : 0;
-		#endif
-
-		return vstl::failed;
+	/// returns the value the test program should return
+	size_t get_exit_code() {
+		return failed != 0 ? 1 : 0;
 	}
 
 	template<typename S>
 	void fail(const S& message) {
+		if (VSTL_TRIGGER_DEBUGGER) {
+
+			// Why am I taken here?
+			// By default VSTL will send a signal to the attached debugger when an assertion fails
+			// so that you can debug your code without restarting the test suite. If that is not desired
+			// you can run you program without a debugger or suppress it using #define VSTL_TRIGGER_DEBUGGER false
+			raise(SIGTRAP);
+		}
+
 		throw test_error {message};
+	}
+
+	template<typename S>
+	void skip(const S& message) {
+		throw test_skip {message};
 	}
 
 }
 
-inline vstl::Test operator +(const char* name, const vstl::Test::Func& tester) {
-    return vstl::Test {name, tester};
+
+
+/*
+ * Those operators are used as special constructors and are needed
+ * so the "TEST(name) {}" syntax can be used
+ */
+
+inline vstl::test operator +(const char* name, const vstl::test::functor& tester) {
+    return vstl::test {name, tester};
 }
 
-inline vstl::Handler operator +(const char* name, const vstl::Handler::Func& handler) {
-    return vstl::Handler {handler};
+inline vstl::handler operator +(const char* name, const vstl::handler::functor& handler) {
+    return vstl::handler {handler};
+}
+
+
+
+/*
+ * VSTL entrypoint
+ * this library should be included once per executable target
+ */
+
+int main() {
+	vstl::init();
+	vstl::run(std::cout);
+	return vstl::get_exit_code();
 }
