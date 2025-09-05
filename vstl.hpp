@@ -250,6 +250,31 @@ namespace vstl {
 	struct test_error final : std::runtime_error { explicit test_error(const std::string& error) : runtime_error(error) {} };
 	struct test_skip final : std::runtime_error { explicit test_skip(const std::string& error) : runtime_error(error) {} };
 
+	void set_timeout(size_t milliseconds) {
+
+		fail_on_alarm = (milliseconds != 0);
+
+#ifdef _WIN32
+
+		// Unimplemented on windows
+
+#else
+
+		size_t seconds = milliseconds / 1000;
+		size_t reminder = milliseconds % 1000;
+		size_t microseconds = reminder * 1000;
+
+		struct itimerval timer;
+		timer.it_interval.tv_sec = 0;
+		timer.it_interval.tv_usec = 0;
+		timer.it_value.tv_sec = seconds;
+		timer.it_value.tv_usec = microseconds;
+
+		setitimer(ITIMER_REAL, &timer, nullptr);
+
+#endif
+	}
+
 
 
 	/*
@@ -311,7 +336,7 @@ namespace vstl {
 			for (size_t i = 0; i < count; i ++) {
 
 				// reset any pending alarm
-				alarm(0);
+				set_timeout(0);
 
 				// reset test state per invocation
 				expected_signal = 0;
@@ -398,7 +423,12 @@ namespace vstl {
 		if (sig == SIGSEGV) return "SIGSEGV";
 		if (sig == SIGILL) return "SIGILL";
 		if (sig == SIGFPE) return "SIGFPE";
+		if (sig == SIGABRT) return "SIGABRT";
+		if (sig == SIGTERM) return "SIGTERM";
+
+#ifndef _WIN32
 		if (sig == SIGTRAP) return "SIGTRAP";
+#endif
 
 		return "unknown signal";
 	}
@@ -482,31 +512,6 @@ namespace vstl {
 		action.sa_sigaction = signal_handler;
 
 		sigaction(signum, &action, nullptr);
-
-#endif
-	}
-
-	void set_timeout(size_t milliseconds) {
-
-		fail_on_alarm = true;
-
-#ifdef _WIN32
-
-		// Unimplemented on windows
-
-#else
-
-		size_t seconds = milliseconds / 1000;
-		size_t reminder = milliseconds % 1000;
-		size_t microseconds = reminder * 1000;
-
-		struct itimerval timer;
-		timer.it_interval.tv_sec = 0;
-		timer.it_interval.tv_usec = 0;
-		timer.it_value.tv_sec = seconds;
-		timer.it_value.tv_usec = microseconds;
-
-		setitimer(ITIMER_REAL, &timer, nullptr);
 
 #endif
 	}
