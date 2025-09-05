@@ -30,7 +30,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           ./build/vstl_demo > ./build/test.out || true
-          cat test.out
+          cat ./build/test.out
           diff -u .github/linux.out ./build/test.out
           
       - name: Test (Windows)
