@@ -16,9 +16,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-cmake@v3
-        with:
-          cmake-version: '3.27.0'
+      - name: Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
 
       - name: Configure
         run: cmake . -B build
