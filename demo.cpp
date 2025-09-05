@@ -1,5 +1,5 @@
 
-#define VSTL_TRIGGER_DEBUGGER false
+#define VSTL_USE_ANSI false
 #define VSTL_PRINT_SKIP_MESSAGES true
 
 #include "vstl.hpp"
