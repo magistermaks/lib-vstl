@@ -4,7 +4,10 @@
 #define VSTL_PRINT_SKIP_MESSAGES true
 
 #include "vstl.hpp"
+
 #include <stdexcept>
+#include <thread>
+#include <chrono>
 
 // each test begins with the TEST(name) clause
 // the test names need not be unique
@@ -17,7 +20,7 @@ TEST(vstl_check) {
 	CHECK(vec[3], 4);
 
 	// oh no! will print this message:
-	// Error: Expected 2 to be equal 4, vec[1] != 4, on line 21!
+	// Error: Expected 2 to be equal 4, vec[1] != 4!
 	CHECK(vec[1], 4);
 
 	// remember to put ';' at the end, a TEST is not a function!
@@ -32,7 +35,7 @@ TEST(vstl_fail) {
 	if (bool oops = true) {
 
 		// oh no! will print this message:
-		// Error: Oops, on line 36
+		// Error: Oops!
 		FAIL("Oops");
 	}
 
@@ -50,10 +53,10 @@ TEST(vstl_assert) {
 	ASSERT(a * 2 == b);
 	ASSERT_MSG(a == b / 2, "Joker");
 
-	// prints: Expected a * 3 == b to be true, but it was not, on line 54!
+	// prints: Expected a * 3 == b to be true, but it was not!
 	// ASSERT(a * 3 == b);
 
-	// prints: Error: Thief, on line 57!
+	// prints: Error: Thief!
 	ASSERT_MSG(a == b / 3, "Thief");
 
 };
@@ -80,12 +83,12 @@ TEST(vstl_expect) {
 		throw 42;
 	});
 
-	// prints: Error: Expected exception of type std::runtime_error, on line 84!
+	// prints: Error: Expected exception of type std::runtime_error!
 	EXPECT_THROW(std::runtime_error, {
 		throw std::string {"Oh no!"};
 	});
 
-	// prints: Error: Expected exception, on line 89!
+	// prints: Error: Expected exception!
 	EXPECT_THROW(std::runtime_error, {
 		// nothing gets thrown
 	});
@@ -105,7 +108,7 @@ TEST(vstl_signal) {
 		*ptr = 42;
 	});
 
-	sleep(2);
+	std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
 };
 

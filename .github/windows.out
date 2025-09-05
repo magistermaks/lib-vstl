@@ -1,7 +1,7 @@
-Test 'vstl_check' failed! Error: Expected 2 to be equal 4, vec[1] != 4, on line 21!
-Test 'vstl_fail' failed! Error: Oops, on line 36!
-Test 'vstl_assert' failed! Error: Thief, on line 57!
-Test 'vstl_expect' failed! Error: Expected exception of type std::runtime_error, on line 84!
+Test 'vstl_check' failed! Error: Expected 2 to be equal 4, vec[1] != 4, on line 24!
+Test 'vstl_fail' failed! Error: Oops, on line 39!
+Test 'vstl_assert' failed! Error: Thief, on line 60!
+Test 'vstl_expect' failed! Error: Expected exception of type std::runtime_error, on line 87!
 Test 'vstl_signal' failed! Timeout reached!
 Test 'vstl_fault' failed! Error: Received SIGSEGV (#11)!
 Test 'vstl_skip' skipped!

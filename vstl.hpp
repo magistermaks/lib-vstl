@@ -86,11 +86,15 @@
 #endif
 
 #ifdef _WIN32
+#	include <windows.h>
 #	define VSTL_JMP_SIG(jmp) longjmp(jmp, 1)
 #	define VSTL_JMP_SET(jmp) setjmp(jmp)
+#	define VSTL_TRAP() DebugBreak()
 #else
+#	include <sys/time.h>
 #	define VSTL_JMP_SIG(jmp) siglongjmp(jmp, 1)
 #	define VSTL_JMP_SET(jmp) sigsetjmp(jmp, 0xffffffff)
+#	define VSTL_TRAP() raise(SIGTRAP)
 #endif
 
 #include <csignal>
@@ -163,7 +167,7 @@ vstl::expected_signal = signum; if (VSTL_JMP_SET(vstl::expect_jmp) == 0) { __VA_
 
 /// set test timeout
 #define TIMEOUT(seconds) \
-alarm(seconds); vstl::fail_on_alarm = true;
+vstl::set_timeout(seconds * 1000);
 
 // internal VSTL namespace, don't use :gun:
 namespace vstl {
@@ -400,10 +404,12 @@ namespace vstl {
 	}
 
 	bool handle_shared_signal(int sig) {
+#ifndef _WIN32
 		if (sig == SIGALRM && fail_on_alarm) {
 			printf("Test '%s' " VSTL_FAILED "! Timeout reached!\n", tests[index].name);
 			return false; // skip default print
 		}
+#endif
 
 		if (expected_signal == sig) {
 			expected_signal = 0;
@@ -480,6 +486,31 @@ namespace vstl {
 #endif
 	}
 
+	void set_timeout(size_t milliseconds) {
+
+		fail_on_alarm = true;
+
+#ifdef _WIN32
+
+		// Unimplemented on windows
+
+#else
+
+		size_t seconds = milliseconds / 1000;
+		size_t reminder = milliseconds % 1000;
+		size_t microseconds = reminder * 1000;
+
+		struct itimerval timer;
+		timer.it_interval.tv_sec = 0;
+		timer.it_interval.tv_usec = 0;
+		timer.it_value.tv_sec = seconds;
+		timer.it_value.tv_usec = microseconds;
+
+		setitimer(ITIMER_REAL, &timer, nullptr);
+
+#endif
+	}
+
 	/// setup signal handlers
 	void init() {
 #ifndef _WIN32
@@ -491,16 +522,19 @@ namespace vstl {
 		stack.ss_flags = 0;
 		sigaltstack(&stack, nullptr);
 
-#endif
-
-		catch_signal(SIGSEGV);
-		catch_signal(SIGILL);
-		catch_signal(SIGFPE);
 		catch_signal(SIGALRM);
 
 		if (VSTL_TRIGGER_DEBUGGER) {
 			signal(SIGTRAP, SIG_IGN);
 		}
+
+#endif
+
+		catch_signal(SIGSEGV);
+		catch_signal(SIGILL);
+		catch_signal(SIGFPE);
+		catch_signal(SIGABRT);
+		catch_signal(SIGTERM);
 
 	}
 
@@ -552,7 +586,7 @@ namespace vstl {
 			// By default VSTL will send a signal to the attached debugger when an assertion fails
 			// so that you can debug your code without restarting the test suite. If that is not desired
 			// you can run you program without a debugger or suppress it using #define VSTL_TRIGGER_DEBUGGER false
-			raise(SIGTRAP);
+			VSTL_TRAP();
 		}
 
 		throw test_error {message};
