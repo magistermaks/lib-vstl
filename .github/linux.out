@@ -1,0 +1,10 @@
+Test 'vstl_check' failed! Error: Expected 2 to be equal 4, vec[1] != 4, on line 20!
+Test 'vstl_fail' failed! Error: Oops, on line 35!
+Test 'vstl_assert' failed! Error: Thief, on line 56!
+Test 'vstl_expect' failed! Error: Expected exception of type std::runtime_error, on line 83!
+Test 'vstl_signal' failed! Timeout reached!
+Test 'vstl_fault' failed! Error: Received SIGSEGV (#11) while trying to access: 0x0!
+Test 'vstl_skip' skipped!
+Test 'vstl_final' successful!
+
+Executed 8 tests, 6 failed, 1 succeeded. (time: 1000.3ms)
