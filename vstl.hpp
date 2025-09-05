@@ -501,7 +501,7 @@ namespace vstl {
 
 	void catch_signal(int signum) {
 #ifdef _WIN32
-		signal(signal, signal_handler);
+		signal(signum, signal_handler);
 #else
 
 		// our signal action description
