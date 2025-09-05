@@ -39,6 +39,7 @@
  *    #define VSTL_TRIGGER_DEBUGGER true   - Should VSTL try to trigger the debugger (when attached) when a assertion fails?
  *    #define VSTL_PRINT_SKIP_REASON false - Should VSTL print the messages given to SKIP()?
  *    #define VSTL_PRINT_SUCCESS true      - Should VSTL print a log entry when the test is successful?
+ *    #define VSTL_PRINT_TIME true         - Should VSTL print the time taken to run the tests?
  *
  */
 
@@ -62,6 +63,11 @@
 /// Should VSTL print a log entry when the test is successful?
 #ifndef VSTL_PRINT_SUCCESS
 #	define VSTL_PRINT_SUCCESS true
+#endif
+
+/// Should VSTL print the time taken to run the tests?
+#ifndef VSTL_PRINT_TIME
+#	define VSTL_PRINT_TIME true
 #endif
 
 /// Should VSTL use ANSI escape codes to show colored output?
@@ -450,7 +456,10 @@ namespace vstl {
 		out << (executed == 1 ? "test" : "tests") << ", ";
 		out << failed << " failed, ";
 		out << (successful - skipped) << " succeeded.";
-		out << " (time: " << millis << "ms)";
+
+		if (VSTL_PRINT_TIME) {
+			out << " (time: " << millis << "ms)";
+		}
 		out << std::endl;
 	}
 
