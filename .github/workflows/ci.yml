@@ -40,5 +40,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           ./build/Debug/vstl_demo.exe > ./build/test.out || true
+          dir .github
+          dir build
           type ./build/test.out
           fc.exe ./.github/windows.out ./build/test.out
