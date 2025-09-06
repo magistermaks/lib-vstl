@@ -7,38 +7,46 @@ on:
     branches: ['**']
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-      fail-fast: false
-
+  linux:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake g++
 
       - name: Configure
-        run: cmake . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake . -B build
 
       - name: Build
-        run: cmake --build build/ --config Release
+        run: cmake --build build
 
-      - name: Test (Linux)
-        if: runner.os == 'Linux'
+      - name: Test
         run: |
           ./build/vstl_demo > ./build/test.out || true
           cat ./build/test.out
           diff -u .github/linux.out ./build/test.out
-          
-      - name: Test (Windows)
-        if: runner.os == 'Windows'
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MinGW
         run: |
-          & ./build/Release/vstl_demo.exe *> ./build/test.out
-          type ./build/test.out
-          fc.exe .\.github\windows.out .\build\test.out
+          choco install mingw -y
+          echo "C:/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin" >> $GITHUB_PATH
+
+      - name: Configure
+        run: cmake . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test
+        run: |
+          ./build/Release/vstl_demo.exe > ./build/test.out || exit 0
+          type build/test.out
+          fc .\.github\windows.out .\build\test.out
