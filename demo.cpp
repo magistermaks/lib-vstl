@@ -2,10 +2,10 @@
 #define VSTL_USE_ANSI false
 #define VSTL_PRINT_TIME false
 #define VSTL_PRINT_SKIP_MESSAGES true
+#define VSTL_TRIGGER_DEBUGGER false
 
 #include "vstl.hpp"
 
-#include <stdexcept>
 #include <thread>
 #include <chrono>
 
