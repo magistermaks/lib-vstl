@@ -49,4 +49,4 @@ jobs:
         run: |
           & ./build/vstl_demo.exe *> ./build/test.out
           type build/test.out
-          fc .\.github\windows.out .\build\test.out
+          fc.exe .\.github\windows.out .\build\test.out
