@@ -1,7 +1,7 @@
 
 #define VSTL_USE_ANSI false
 #define VSTL_PRINT_TIME false
-#define VSTL_PRINT_SKIP_MESSAGES true
+#define VSTL_PRINT_SKIP_REASON true
 #define VSTL_TRIGGER_DEBUGGER false
 
 #include "vstl.hpp"
@@ -69,29 +69,29 @@ TEST(vstl_expect) {
 	// either of any or some specific type
 
 	// check if any exception was thrown
-	EXPECT_ANY({
+	EXPECT_ANY() {
 		throw "oh my!";
-	});
+	};
 
 	// check if runtime_error was thrown
-	EXPECT_THROW(std::runtime_error, {
+	EXPECT_THROW(std::runtime_error) {
 		throw std::runtime_error {"Error of a runtime type"};
-	});
+	};
 
 	// any exception type is valid
-	EXPECT_THROW(int, {
+	EXPECT_THROW(int) {
 		throw 42;
-	});
+	};
 
 	// prints: Error: Expected exception of type std::runtime_error!
-	EXPECT_THROW(std::runtime_error, {
+	EXPECT_THROW(std::runtime_error) {
 		throw std::string {"Oh no!"};
-	});
+	};
 
 	// prints: Error: Expected exception!
-	EXPECT_THROW(std::runtime_error, {
+	EXPECT_THROW(std::runtime_error) {
 		// nothing gets thrown
-	});
+	};
 
 };
 
@@ -102,11 +102,11 @@ TEST(vstl_signal) {
 	TIMEOUT(1);
 
 	// you can only expect predefined signals
-	// by default VSTL handles SIGSEGV, SIGILL, SIGFPE, and SIGALRM
-	EXPECT_SIGNAL(SIGSEGV, {
+	// by default VSTL handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, and SIGTERM
+	EXPECT_SIGNAL(SIGSEGV) {
 		int* ptr = nullptr;
 		*ptr = 42;
-	});
+	};
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 

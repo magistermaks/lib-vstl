@@ -4,7 +4,7 @@ Test 'vstl_assert' failed! Error: Thief, on line 60!
 Test 'vstl_expect' failed! Error: Expected exception of type std::runtime_error, on line 87!
 Test 'vstl_signal' successful!
 Test 'vstl_fault' failed! Error: Received SIGSEGV (#11)!
-Test 'vstl_skip' skipped!
+Test 'vstl_skip' skipped! I don't feel like testing rn, on line 135!
 Test 'vstl_final' successful!
 
 Executed 8 tests, 5 failed, 2 succeeded.
