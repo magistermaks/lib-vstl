@@ -43,4 +43,4 @@ jobs:
           dir .github
           dir build
           type ./build/test.out
-          fc.exe ./.github/windows.out ./build/test.out
+          fc.exe .\.github\windows.out .\build\test.out
