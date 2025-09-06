@@ -47,6 +47,6 @@ jobs:
 
       - name: Test
         run: |
-          ./build/Release/vstl_demo.exe > ./build/test.out || exit 0
+          ./build/vstl_demo.exe > ./build/test.out || exit 0
           type build/test.out
           fc .\.github\windows.out .\build\test.out
