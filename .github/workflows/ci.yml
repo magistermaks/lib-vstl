@@ -24,10 +24,10 @@ jobs:
           sudo apt-get install -y cmake g++
 
       - name: Configure
-        run: cmake . -B build
+        run: cmake . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build/
+        run: cmake --build build/ --config Release
 
       - name: Test (Linux)
         if: runner.os == 'Linux'
@@ -39,8 +39,6 @@ jobs:
       - name: Test (Windows)
         if: runner.os == 'Windows'
         run: |
-          & ./build/Debug/vstl_demo.exe
-          & ./build/Debug/vstl_demo.exe *> ./build/test.out
-          dir build
+          & ./build/Release/vstl_demo.exe *> ./build/test.out
           type ./build/test.out
           fc.exe .\.github\windows.out .\build\test.out

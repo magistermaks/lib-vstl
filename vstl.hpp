@@ -516,9 +516,21 @@ namespace vstl {
 #endif
 	}
 
+#ifdef _WIN32
+	LONG WINAPI vector_exception_handler(EXCEPTION_POINTERS* info) {
+		if (info->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
+			signal_handler(SIGSEGV);
+		}
+
+		return EXCEPTION_CONTINUE_SEARCH;
+	}
+#endif
+
 	/// setup signal handlers
 	void init() {
-#ifndef _WIN32
+#ifdef _WIN32
+		AddVectoredExceptionHandler(1, vector_exception_handler);
+#else
 
 		// custom stack to make VSTL more resilient if the stack pointer gets corrupted
 		stack_t stack;
