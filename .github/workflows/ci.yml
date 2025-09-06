@@ -39,8 +39,8 @@ jobs:
       - name: Test (Windows)
         if: runner.os == 'Windows'
         run: |
+          & ./build/Debug/vstl_demo.exe
           & ./build/Debug/vstl_demo.exe *> ./build/test.out
-          dir .github
           dir build
           type ./build/test.out
           fc.exe .\.github\windows.out .\build\test.out
