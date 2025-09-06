@@ -7,4 +7,4 @@ Test 'vstl_fault' failed! Error: Received SIGSEGV (#11)!
 Test 'vstl_skip' skipped!
 Test 'vstl_final' successful!
 
-Executed 8 tests, 6 failed, 2 succeeded.
+Executed 8 tests, 5 failed, 2 succeeded.
