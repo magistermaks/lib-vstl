@@ -104,10 +104,10 @@
  *
  * 4) Handlers
  *
- *    If your code makes use of custom exception that do not derive from std::exception, you may define a custom VSTL
+ *    If your code makes use of custom exceptions that do not derive from std::exception, you may define a custom VSTL
  *    error handler to translate your exception into appropriate printable strings (those will then be used if that custom
  *    exception causes a test-fail). This is generally unadvised (your exception should derive from std::exception) but can
- *    be archived in VSTL as shown below.
+ *    be achieved in VSTL as shown below.
  *
  *    ```c++
  *    #include <vstl.hpp>
@@ -172,6 +172,7 @@
 #	define VSTL_SUCCESSFUL "successful"
 #endif
 
+// internal platform abstraction macros, don't use :gun:
 #ifdef _WIN32
 #	include <windows.h>
 #	define VSTL_JMP_SIG(jmp) longjmp(jmp, 1)
@@ -350,7 +351,7 @@ namespace vstl {
 
 #ifdef _WIN32
 
-		// Unimplemented on windows
+		// TODO: Unimplemented on windows
 
 #else
 
