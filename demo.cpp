@@ -1,11 +1,13 @@
 
-#include "vstl.hpp"
-#include <stdexcept>
+#define VSTL_USE_ANSI false
+#define VSTL_PRINT_TIME false
+#define VSTL_PRINT_SKIP_REASON true
+#define VSTL_TRIGGER_DEBUGGER false
 
-// each test unit must contain the one begin clause
-// LENIENT means don't stop on first failed test
-// you can also use VSTL_MODE_STRICT for the opposite behaviour
-BEGIN(VSTL_MODE_LENIENT)
+#include "vstl.hpp"
+
+#include <thread>
+#include <chrono>
 
 // each test begins with the TEST(name) clause
 // the test names need not be unique
@@ -18,7 +20,7 @@ TEST(vstl_check) {
 	CHECK(vec[3], 4);
 
 	// oh no! will print this message:
-	// Error: Expected 2 to be equal 4, vec[1] != 4, on line 22!
+	// Error: Expected 2 to be equal 4, vec[1] != 4!
 	CHECK(vec[1], 4);
 
 	// remember to put ';' at the end, a TEST is not a function!
@@ -33,7 +35,7 @@ TEST(vstl_fail) {
 	if (bool oops = true) {
 
 		// oh no! will print this message:
-		// Error: Oops, on line 37
+		// Error: Oops!
 		FAIL("Oops");
 	}
 
@@ -43,7 +45,7 @@ TEST(vstl_fail) {
 TEST(vstl_assert) {
 
 	// there are also simple ASSERT and
-	// ASSERT_MSG macros avaible, if CHECK is not your cup of tea
+	// ASSERT_MSG macros available, if CHECK is not your cup of tea
 
 	int a = 21;
 	int b = 42;
@@ -51,10 +53,10 @@ TEST(vstl_assert) {
 	ASSERT(a * 2 == b);
 	ASSERT_MSG(a == b / 2, "Joker");
 
-	// prints: Expected a * 3 == b to be true, but it was not, on line 54!
+	// prints: Expected a * 3 == b to be true, but it was not!
 	// ASSERT(a * 3 == b);
 
-	// prints: Error: Thief, on line 58!
+	// prints: Error: Thief!
 	ASSERT_MSG(a == b / 3, "Thief");
 
 };
@@ -67,29 +69,46 @@ TEST(vstl_expect) {
 	// either of any or some specific type
 
 	// check if any exception was thrown
-	EXPECT_ANY({
+	EXPECT_ANY() {
 		throw "oh my!";
-	});
+	};
 
 	// check if runtime_error was thrown
-	EXPECT(std::runtime_error, {
+	EXPECT_THROW(std::runtime_error) {
 		throw std::runtime_error {"Error of a runtime type"};
-	});
+	};
 
 	// any exception type is valid
-	EXPECT(int, {
+	EXPECT_THROW(int) {
 		throw 42;
-	});
+	};
 
-	// prints: Error: Expected exception of type std::runtime_error, on line 86!
-	EXPECT(std::runtime_error, {
+	// prints: Error: Expected exception of type std::runtime_error!
+	EXPECT_THROW(std::runtime_error) {
 		throw std::string {"Oh no!"};
-	});
+	};
 
-	// prints: Error: Expected exception, on line 91!
-	EXPECT(std::runtime_error, {
+	// prints: Error: Expected exception!
+	EXPECT_THROW(std::runtime_error) {
 		// nothing gets thrown
-	});
+	};
+
+};
+
+
+TEST(vstl_signal) {
+
+	// the test must end in 1 second
+	TIMEOUT(1);
+
+	// you can only expect predefined signals
+	// by default VSTL handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, and SIGTERM
+	EXPECT_SIGNAL(SIGSEGV) {
+		int* ptr = nullptr;
+		*ptr = 42;
+	};
+
+	std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
 };
 
@@ -107,11 +126,21 @@ TEST(vstl_fault) {
 };
 
 
+TEST(vstl_skip) {
+
+	// If you want to skip the test you can use the SKIP macro
+	// the test will not count as successful (nor failed) and will print the status "skipped"
+	// the reason will not be shown by default but you can make VSTL show it
+	// by adding `#define VSTL_PRINT_SKIP_MESSAGES true` before the VSTL include
+	SKIP("I don't feel like testing rn");
+};
+
+
 TEST(vstl_final) {
 
-	// mostly a demonstration that the previous
+	// mostly a demonstration that the vstl_fault
 	// test did not crash the program, (or maybe that it did)
-	// also the only test here that dosn't fail
+	// also the only test here that is successful
 
 	// happy testing!
 
