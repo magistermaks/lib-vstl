@@ -690,7 +690,7 @@ namespace vstl {
 	}
 
 	/// returns the value the test program should return
-	size_t get_exit_code() {
+	int get_exit_code() {
 		return failed != 0 ? 1 : 0;
 	}
 

@@ -4,8 +4,6 @@ Very Simple Test Library
 ```c++
 #include "vstl.hpp"
 
-BEGIN(VSTL_MODE_LENIENT)
-
 TEST(hello_vstl) {
 
 	std::vector<int> vec {1, 2, 3, 4, 5, 6, 7, 8};
@@ -16,7 +14,7 @@ TEST(hello_vstl) {
 	CHECK(vec[3], 4);
 
 	// oh no! will print this message:
-	// Error: Expected 2 to be equal 4, vec[1] != 4, on line 22!
+	// Error: Expected 2 to be equal 4, vec[1] != 4, on line 20!
 	CHECK(vec[1], 4);
 
 	// to learn more see `demo.cpp`
@@ -29,4 +27,4 @@ See the `vstl.hpp` header file and
 the attached usage example `demo.cpp`.
 
 ### License
-MIT, see `vstl.hpp`
+VSTL is licensed under the MIT License, see `vstl.hpp`
