@@ -208,7 +208,7 @@
 #define VSTL_EXCEPT "Expected exception"
 #define VSTL_RETHROW catch (vstl::test_error& fail) { throw fail; }
 #define VSTL_VTOS(value) + vstl::to_printable(value) +
-#define VSTL_CLAUSE []() noexcept(false) -> void
+#define VSTL_CLAUSE [&] () noexcept(false) -> void
 #define VSTL_WRAP void(0), [] (const std::function<void()>& inner)
 
 /// define a test of the given [name]: TEST(example_test) { /* the test */ }
@@ -318,34 +318,34 @@ namespace vstl {
 	struct handler;
 
 	/// index of the current test, needed by the signal handlers
-	size_t index = 0;
+	inline size_t index = 0;
 
 	/// number of failed tests
-	size_t failed = 0;
+	inline size_t failed = 0;
 
 	/// number of successful tests (includes skipped tests)
-	size_t successful = 0;
+	inline size_t successful = 0;
 
 	/// number of skipped tests
-	size_t skipped = 0;
+	inline size_t skipped = 0;
 
 	/// jump buffer used to return out of signal handlers
-	jmp_buf jmp {};
+	inline jmp_buf jmp {};
 
 	/// should the test treat SIGALRM as an error condition
-	bool fail_on_alarm = false;
+	inline bool fail_on_alarm = false;
 
 	/// used by the EXPECT_SIGNAL block
-	int expected_signal = 0;
+	inline int expected_signal = 0;
 
 	/// used by the EXPECT_SIGNAL block, where to jump to when the expected signal comes
-	jmp_buf expect_jmp;
+	inline jmp_buf expect_jmp;
 
 	/// Exceptions used by VSTL assertions
 	struct test_error final : std::runtime_error { explicit test_error(const std::string& error) : runtime_error(error) {} };
 	struct test_skip final : std::runtime_error { explicit test_skip(const std::string& error) : runtime_error(error) {} };
 
-	void set_timeout(size_t milliseconds) {
+	inline void set_timeout(size_t milliseconds) {
 
 		fail_on_alarm = (milliseconds != 0);
 
@@ -401,7 +401,7 @@ namespace vstl {
 	std::vector<handler> handlers;
 
 	/// called by handler constructor
-	void append(const handler& handler) {
+	inline void append(const handler& handler) {
 		handlers.emplace_back(handler);
 	}
 
@@ -507,7 +507,7 @@ namespace vstl {
 	std::vector<test> tests;
 
 	/// called by test constructor
-	void append(const test& test) {
+	inline void append(const test& test) {
 		tests.emplace_back(test);
 	}
 
@@ -518,7 +518,7 @@ namespace vstl {
 	 * we rely on there being only one test harness at a time - VSTL can only be included once per executable
 	 */
 
-	const char* get_signal_name(int sig) {
+	inline const char* get_signal_name(int sig) {
 		if (sig == SIGSEGV) return "SIGSEGV";
 		if (sig == SIGILL) return "SIGILL";
 		if (sig == SIGFPE) return "SIGFPE";
@@ -532,7 +532,7 @@ namespace vstl {
 		return "unknown signal";
 	}
 
-	bool handle_shared_signal(int sig) {
+	inline bool handle_shared_signal(int sig) {
 #ifndef _WIN32
 		if (sig == SIGALRM && fail_on_alarm) {
 			printf("Test '%s' " VSTL_FAILED "! Timeout reached!\n", tests[index].name);
@@ -550,11 +550,11 @@ namespace vstl {
 	}
 
 #ifdef _WIN32
-	void print_signal(const char* test, int sig) {
+	inline void print_signal(const char* test, int sig) {
 		printf("Test '%s' " VSTL_FAILED "! Error: Received %s (#%d)!\n", test, get_signal_name(sig), sig);
 	}
 
-	void signal_handler(int sig) {
+	inline void signal_handler(int sig) {
 		if (handle_shared_signal(sig)) {
 			print_signal(tests[index].name, sig);
 		}
@@ -562,11 +562,11 @@ namespace vstl {
 		VSTL_JMP_SIG(jmp);
 	}
 #else
-	void print_signal(const char* test, int sig, int64_t address) {
+	inline void print_signal(const char* test, int sig, int64_t address) {
 		printf("Test '%s' " VSTL_FAILED "! Error: Received %s (#%d) while trying to access: 0x%lx!\n", test, get_signal_name(sig), sig, address);
 	}
 
-	void signal_handler(int sig, siginfo_t* si, void* unused) {
+	inline void signal_handler(int sig, siginfo_t* si, void* unused) {
 		if (handle_shared_signal(sig)) {
 			print_signal(tests[index].name, sig, reinterpret_cast<int64_t>(si->si_addr));
 		}
@@ -583,7 +583,7 @@ namespace vstl {
 	 */
 
 	/// output a simple summary line
-	void summary(std::ostream& out, const auto& time) {
+	inline void summary(std::ostream& out, const auto& time) {
 		size_t executed = failed + successful;
 		double millis = std::chrono::duration<double, std::milli>(time).count();
 
@@ -598,7 +598,7 @@ namespace vstl {
 		out << std::endl;
 	}
 
-	void catch_signal(int signum) {
+	inline void catch_signal(int signum) {
 #ifdef _WIN32
 		signal(signum, signal_handler);
 #else
@@ -616,7 +616,7 @@ namespace vstl {
 	}
 
 #ifdef _WIN32
-	LONG WINAPI vector_exception_handler(EXCEPTION_POINTERS* info) {
+	inline LONG WINAPI vector_exception_handler(EXCEPTION_POINTERS* info) {
 		if (info->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
 			signal_handler(SIGSEGV);
 		}
@@ -626,7 +626,7 @@ namespace vstl {
 #endif
 
 	/// setup signal handlers
-	void init() {
+	inline void init() {
 #ifdef _WIN32
 		AddVectoredExceptionHandler(1, vector_exception_handler);
 #else
@@ -655,7 +655,7 @@ namespace vstl {
 	}
 
 	/// Invoke all tests
-	void run(std::ostream& out) {
+	inline void run(std::ostream& out) {
 		const auto start = std::chrono::steady_clock::now();
 
 		index = 0;
@@ -690,7 +690,7 @@ namespace vstl {
 	}
 
 	/// returns the value the test program should return
-	int get_exit_code() {
+	inline int get_exit_code() {
 		return failed != 0 ? 1 : 0;
 	}
 
