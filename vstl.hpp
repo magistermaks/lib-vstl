@@ -213,7 +213,7 @@
 
 /// define a test of the given [name]: TEST(example_test) { /* the test */ }
 #define TEST(name) \
-VSTL_BLC vstl::test VSTL_UNIQUE(__vstl_test__) = #name+[] (const vstl::test& vstl_self) noexcept(false) -> void
+VSTL_BLC vstl::test VSTL_UNIQUE(__vstl_test_##name##__) = #name+[] (const vstl::test& vstl_self) noexcept(false) -> void
 
 /// used to defined error handlers (converters), place anywhere in the test file. use like this: HANDLER { CATCH_PTR (my_error_class& err) { FAIL(err.str())  } }
 #define HANDLER \
