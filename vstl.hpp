@@ -194,7 +194,7 @@
 #include <iostream>
 #include <sstream>
 
-#define VSTL_VERSION "3.3"
+#define VSTL_VERSION "3.4"
 
 // internal macros, don't use :gun:
 #define VSTL_UNEQUAL(va, vb) for(auto __vstl_a__ = (va), __vstl_b__ = (decltype(__vstl_a__)) (vb); __vstl_a__ != __vstl_b__;)
