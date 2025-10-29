@@ -40,6 +40,7 @@
  *    #define VSTL_PRINT_SKIP_REASON false - Should VSTL print the messages given to SKIP()?
  *    #define VSTL_PRINT_SUCCESS true      - Should VSTL print a log entry when the test is successful?
  *    #define VSTL_PRINT_TIME true         - Should VSTL print the time taken to run the tests?
+ *    #define VSTL_SUBMODULE false         - Should VSTL be build as submodule (linkable with other units)?
  *
  * 2) Structure
  *
@@ -162,6 +163,11 @@
 #	define VSTL_USE_ANSI true
 #endif
 
+/// Should VSTL be build as submodule (linkable with other units)?
+#ifndef VSTL_SUBMODULE
+#	define VSTL_SUBMODULE false
+#endif
+
 #if VSTL_USE_ANSI
 #	define VSTL_FAILED "\033[31;1mfailed\033[0m"
 #	define VSTL_SKIPPED "\033[33;1mskipped\033[0m"
@@ -178,11 +184,13 @@
 #	define VSTL_JMP_SIG(jmp) longjmp(jmp, 1)
 #	define VSTL_JMP_SET(jmp) setjmp(jmp)
 #	define VSTL_TRAP() DebugBreak()
+#	define ENTRYPOINT int main()
 #else
 #	include <sys/time.h>
 #	define VSTL_JMP_SIG(jmp) siglongjmp(jmp, 1)
 #	define VSTL_JMP_SET(jmp) sigsetjmp(jmp, 0xffffffff)
 #	define VSTL_TRAP() raise(SIGTRAP)
+#	define ENTRYPOINT __attribute__((weak)) int main()
 #endif
 
 #include <csignal>
@@ -213,11 +221,11 @@
 
 /// define a test of the given [name]: TEST(example_test) { /* the test */ }
 #define TEST(name) \
-VSTL_BLC vstl::test VSTL_UNIQUE(__vstl_test_##name##__) = #name+[] (const vstl::test& vstl_self) noexcept(false) -> void
+VSTL_BLC static inline vstl::test VSTL_UNIQUE(__vstl_test_##name##__) = #name+[] (const vstl::test& vstl_self) noexcept(false) -> void
 
 /// used to defined error handlers (converters), place anywhere in the test file. use like this: HANDLER { CATCH_PTR (my_error_class& err) { FAIL(err.str())  } }
 #define HANDLER \
-VSTL_BLC vstl::handler VSTL_UNIQUE(__vstl_handler__) = "handler"+[] (const std::exception_ptr& ptr) noexcept(false) -> void
+VSTL_BLC static inline vstl::handler VSTL_UNIQUE(__vstl_handler__) = "handler"+[] (const std::exception_ptr& ptr) noexcept(false) -> void
 
 /// helper used in defining error handlers
 #define CATCH_PTR \
@@ -359,11 +367,11 @@ namespace vstl {
 		size_t reminder = milliseconds % 1000;
 		size_t microseconds = reminder * 1000;
 
-		struct itimerval timer;
+		struct itimerval timer {};
 		timer.it_interval.tv_sec = 0;
 		timer.it_interval.tv_usec = 0;
-		timer.it_value.tv_sec = seconds;
-		timer.it_value.tv_usec = microseconds;
+		timer.it_value.tv_sec = (long) seconds;
+		timer.it_value.tv_usec = (long) microseconds;
 
 		setitimer(ITIMER_REAL, &timer, nullptr);
 
@@ -398,7 +406,7 @@ namespace vstl {
 	};
 
 	/// error handlers, lambdas that can catch specific exceptions and rethrow them as vstl::test_error
-	std::vector<handler> handlers;
+	inline std::vector<handler> handlers;
 
 	/// called by handler constructor
 	inline void append(const handler& handler) {
@@ -504,7 +512,7 @@ namespace vstl {
 	};
 
 	/// tests to execute
-	std::vector<test> tests;
+	inline std::vector<test> tests;
 
 	/// called by test constructor
 	inline void append(const test& test) {
@@ -743,8 +751,14 @@ inline void operator +(const std::function<void(const std::function<void()>&)>& 
  * this library should be included once per executable target
  */
 
-int main() {
+// this is here only for windows... on Linux you don't actually need to specify VSTL_SUBMODULE
+// it will work anyway, bc Linux is not designed by a bunch of monkeys...
+#if !VSTL_SUBMODULE
+
+ENTRYPOINT {
 	vstl::init();
 	vstl::run(std::cout);
 	return vstl::get_exit_code();
 }
+
+#endif
