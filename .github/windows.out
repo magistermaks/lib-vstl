@@ -9,6 +9,8 @@ Test 'vstl_skip' skipped! I don't feel like testing rn, on line 135!
 Test 'vstl_integer_hex' failed! Error: Expected 0xFF to be equal 0xAB, a != 0xAB, on line 145!
 Test 'vstl_integer_bin' failed! Error: Expected 0b101 to be equal 0b101000, a != 0b101000, on line 156!
 Test 'vstl_integer_dec' failed! Error: Expected 100 to be equal 200, a != 200, on line 165!
+Test 'vstl_vector' failed! Error: Expected [1, 2, 3, 4, 5, 6, 7, 8] to be equal [1, 2, 3, 4, 5, 6, 8, 7], values != expected, on line 174!
+Test 'vstl_map' failed! Error: Expected [{2, 5}, {1, 1}, {0, 3}] to be equal [{2, 4}, {1, 1}, {0, 3}], values != expected, on line 183!
 Test 'vstl_final' successful!
 
-Executed 12 tests, 8 failed, 3 succeeded.
+Executed 14 tests, 10 failed, 3 succeeded.

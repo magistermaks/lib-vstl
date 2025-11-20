@@ -289,6 +289,7 @@ namespace vstl {
 	}
 
 
+
 	/*
 	 * Those concepts are used to determine how a value can be converted to std::string,
 	 * given a value the vstl::to_printable() WILL return some value based on those concepts
@@ -303,6 +304,15 @@ namespace vstl {
 	template <typename T>
 	concept string_appendable = requires(T value, std::stringstream ss) { ss << value; } && !string_convertible<T> && !string_castable<T>;
 
+	template <typename T>
+	concept string_direct = string_appendable<T> || string_convertible<T> || string_castable<T>;
+
+	template <typename T>
+	concept iterable_non_direct = requires(T value) { value.cbegin(); value.cend(); } && !string_direct<T>;
+
+	template <typename T>
+	concept any_pair = requires(T value) { value.first; value.second; } && !string_direct<T>;
+
 
 
 	/*
@@ -313,6 +323,11 @@ namespace vstl {
 	template <typename T>
 	std::string to_printable(const T& value, print_hint hint) {
 		return "<non-printable value>";
+	}
+
+	template <any_pair T>
+	std::string to_printable(const T& value, print_hint hint) {
+		return "{" + to_printable(value.first, hint) + ", " + to_printable(value.second, hint) + "}";
 	}
 
 	template <string_convertible T>
@@ -364,6 +379,24 @@ namespace vstl {
 		std::stringstream ss;
 		ss << value;
 		return ss.str();
+	}
+
+	template <iterable_non_direct T>
+	std::string to_printable(const T& value, print_hint hint) {
+		std::string result;
+
+		for (const auto& element : value) {
+			result += to_printable(element, hint);
+			result += ", ";
+		}
+
+		// remove trailing ", "
+		if (!result.empty()) {
+			result.pop_back();
+			result.pop_back();
+		}
+
+		return "[" + result + "]";
 	}
 
 

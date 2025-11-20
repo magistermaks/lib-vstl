@@ -166,6 +166,24 @@ TEST(vstl_integer_dec) {
 
 };
 
+TEST(vstl_vector) {
+
+	std::vector values = {1, 2, 3, 4, 5, 6, 7, 8};
+	std::vector expected = {1, 2, 3, 4, 5, 6, 8, 7};
+
+	CHECK(values, expected);
+
+};
+
+TEST(vstl_map) {
+
+	std::unordered_map<int, int> values = {{0, 3}, {1, 1}, {2, 5}};
+	std::unordered_map<int, int> expected = {{0, 3}, {1, 1}, {2, 4}};
+
+	CHECK(values, expected);
+
+}
+
 TEST(vstl_final) {
 
 	// only test here that is successful
