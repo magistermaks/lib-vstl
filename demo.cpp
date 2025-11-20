@@ -135,13 +135,40 @@ TEST(vstl_skip) {
 	SKIP("I don't feel like testing rn");
 };
 
+TEST(vstl_integer_hex) {
+
+	int a = 0xFF;
+
+	// VSTL will deduce those values are hexadecimal and show the
+	// value of 'a' in hexadecimal notation. This is done by looking at
+	// the string values of both sides (if any of them is a hex number)
+	CHECK(a, 0xAB);
+
+};
+
+TEST(vstl_integer_bin) {
+
+	int a = 0b101;
+
+	// VSTL will deduce those values are binary and show the
+	// value of 'a' in binary notation. This is done by looking at
+	// the string values of both sides (if any of them is a binary number)
+	CHECK(a, 0b101000);
+
+};
+
+TEST(vstl_integer_dec) {
+
+	int a = 100;
+
+	// ofc in most cases normal base 10 notation will be used
+	CHECK(a, 200);
+
+};
 
 TEST(vstl_final) {
 
-	// mostly a demonstration that the vstl_fault
-	// test did not crash the program, (or maybe that it did)
-	// also the only test here that is successful
-
+	// only test here that is successful
 	// happy testing!
 
 };

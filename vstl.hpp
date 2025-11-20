@@ -215,7 +215,7 @@
 #define VSTL_LINE "on line " VSTL_TO_STR(__LINE__)
 #define VSTL_EXCEPT "Expected exception"
 #define VSTL_RETHROW catch (vstl::test_error& fail) { throw fail; }
-#define VSTL_VTOS(value) + vstl::to_printable(value) +
+#define VSTL_VTOS(value, hints) + vstl::to_printable(value, hints) +
 #define VSTL_CLAUSE [&] () noexcept(false) -> void
 #define VSTL_WRAP void(0), [] (const std::function<void()>& inner)
 
@@ -233,11 +233,11 @@ try { if(ptr) std::rethrow_exception(ptr); } catch
 
 /// fails the test with the given [reason] when called
 #define FAIL(reason) \
-vstl::fail("" VSTL_VTOS(reason) ", " VSTL_LINE "!");
+vstl::fail("" VSTL_VTOS(reason, {}) ", " VSTL_LINE "!");
 
 /// skip the test with the given [reason] when called
 #define SKIP(reason) \
-vstl::skip("" VSTL_VTOS(reason) ", " VSTL_LINE "!");
+vstl::skip("" VSTL_VTOS(reason, {}) ", " VSTL_LINE "!");
 
 /// asserts the [condition] is true, otherwise fails the test with the custom [reason]
 #define ASSERT_MSG(condition, reason) \
@@ -249,7 +249,7 @@ ASSERT_MSG(condition, "Expected " #condition " to be true, but it was not")
 
 /// checks if the [va] equals [vb], otherwise fails the test
 #define CHECK(va, vb) \
-VSTL_UNEQUAL(va, vb) FAIL("Expected " VSTL_VTOS(__vstl_a__) " to be equal " VSTL_VTOS(__vstl_b__) ", " #va " != " #vb)
+VSTL_UNEQUAL(va, vb) FAIL("Expected " VSTL_VTOS(__vstl_a__, vstl::guess_print_hint(#va, #vb)) " to be equal " VSTL_VTOS(__vstl_b__, vstl::guess_print_hint(#va, #vb)) ", " #va " != " #vb)
 
 /// checks if the following block throws an exception, otherwise fails the test
 #define EXPECT_ANY() \
@@ -270,6 +270,23 @@ vstl::set_timeout(seconds * 1000);
 // internal VSTL namespace, don't use :gun:
 namespace vstl {
 
+	/*
+	 * Printer hints used to manipulate how some value should be displayed,
+	 * this is used to use hexadecimal notation in some cases.
+	 */
+
+	struct print_hint {
+		int base = 10;
+	};
+
+	constexpr print_hint guess_print_hint(const std::string_view& one, const std::string_view& two) {
+		print_hint hints {};
+
+		if (one.starts_with("0x") || two.starts_with("0x")) hints.base = 16;
+		if (one.starts_with("0b") || two.starts_with("0b")) hints.base = 2;
+
+		return hints;
+	}
 
 
 	/*
@@ -294,22 +311,56 @@ namespace vstl {
 	 */
 
 	template <typename T>
-	std::string to_printable(const T& value) {
+	std::string to_printable(const T& value, print_hint hint) {
 		return "<non-printable value>";
 	}
 
 	template <string_convertible T>
-	std::string to_printable(const T& value) {
+	std::string to_printable(const T& value, print_hint hint) {
+		if constexpr (std::is_integral_v<T>) {
+			static const char digits[] = "0123456789ABCDEF";
+			const char* prefix = "";
+
+			uint32_t base = hint.base;
+			T local = value;
+			bool sign = local < 0;
+
+			if (base == 2) {
+				prefix = "0b";
+			} else if (base == 16) {
+				prefix = "0x";
+			} else {
+				return std::to_string(local);
+			}
+
+			if (sign) {
+				local *= -1;
+			}
+
+			std::string result;
+
+			while (local != 0) {
+				result.push_back(digits[local % base]);
+				local /= base;
+			}
+
+			if (result.empty()) return "0";
+			if (sign) result.push_back('-');
+
+			std::reverse(result.begin(), result.end());
+			return prefix + result;
+		}
+
 		return std::to_string(value);
 	}
 
 	template <string_castable T>
-	std::string to_printable(const T& value) {
+	std::string to_printable(const T& value, print_hint hint) {
 		return value;
 	}
 
 	template <string_appendable T>
-	std::string to_printable(const T& value) {
+	std::string to_printable(const T& value, print_hint hint) {
 		std::stringstream ss;
 		ss << value;
 		return ss.str();
