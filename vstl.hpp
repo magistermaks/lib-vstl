@@ -283,7 +283,8 @@ namespace vstl {
 		print_hint hints {};
 
 		if (one.starts_with("0x") || two.starts_with("0x")) hints.base = 16;
-		if (one.starts_with("0b") || two.starts_with("0b")) hints.base = 2;
+		else if (one.starts_with("0b") || two.starts_with("0b")) hints.base = 2;
+		else if (one.starts_with("0") || two.starts_with("0")) hints.base = 8;
 
 		return hints;
 	}
@@ -334,22 +335,21 @@ namespace vstl {
 	std::string to_printable(const T& value, print_hint hint) {
 		if constexpr (std::is_integral_v<T>) {
 			static const char digits[] = "0123456789ABCDEF";
-			const char* prefix = "";
+			const char* base_prefix = "";
+
+			using U = std::make_unsigned<T>::type;
 
 			uint32_t base = hint.base;
-			T local = value;
-			bool sign = local < 0;
+			U local = std::bit_cast<U>(value);
 
 			if (base == 2) {
-				prefix = "0b";
+				base_prefix = "0b";
+			} else if (base == 8) {
+				base_prefix = "0";
 			} else if (base == 16) {
-				prefix = "0x";
+				base_prefix = "0x";
 			} else {
 				return std::to_string(local);
-			}
-
-			if (sign) {
-				local *= -1;
 			}
 
 			std::string result;
@@ -360,10 +360,9 @@ namespace vstl {
 			}
 
 			if (result.empty()) return "0";
-			if (sign) result.push_back('-');
 
 			std::reverse(result.begin(), result.end());
-			return prefix + result;
+			return base_prefix + result + " (decimal " + std::to_string(value) + ")";
 		}
 
 		return std::to_string(value);

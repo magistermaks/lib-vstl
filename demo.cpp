@@ -135,9 +135,10 @@ TEST(vstl_skip) {
 	SKIP("I don't feel like testing rn");
 };
 
+
 TEST(vstl_integer_hex) {
 
-	int a = 0xFF;
+	int a = -0xFF;
 
 	// VSTL will deduce those values are hexadecimal and show the
 	// value of 'a' in hexadecimal notation. This is done by looking at
@@ -145,6 +146,7 @@ TEST(vstl_integer_hex) {
 	CHECK(a, 0xAB);
 
 };
+
 
 TEST(vstl_integer_bin) {
 
@@ -157,6 +159,7 @@ TEST(vstl_integer_bin) {
 
 };
 
+
 TEST(vstl_integer_dec) {
 
 	int a = 100;
@@ -165,6 +168,17 @@ TEST(vstl_integer_dec) {
 	CHECK(a, 200);
 
 };
+
+
+TEST(vstl_integer_oct) {
+
+	int a = 777;
+
+	// common misstate (for me) is to use decimal when I type file permissions
+	CHECK(a, 0777);
+
+};
+
 
 TEST(vstl_vector) {
 
@@ -175,6 +189,7 @@ TEST(vstl_vector) {
 
 };
 
+
 TEST(vstl_map) {
 
 	std::unordered_map<int, int> values = {{0, 3}, {1, 1}, {2, 5}};
@@ -183,6 +198,7 @@ TEST(vstl_map) {
 	CHECK(values, expected);
 
 }
+
 
 TEST(vstl_final) {
 
