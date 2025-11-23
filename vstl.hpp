@@ -40,6 +40,7 @@
  *    #define VSTL_PRINT_SKIP_REASON false - Should VSTL print the messages given to SKIP()?
  *    #define VSTL_PRINT_SUCCESS true      - Should VSTL print a log entry when the test is successful?
  *    #define VSTL_PRINT_TIME true         - Should VSTL print the time taken to run the tests?
+ *    #define VSTL_PRINT_MODULES false     - Should VSTL print the current module (source unit)?
  *    #define VSTL_SUBMODULE false         - Should VSTL be build as submodule (linkable with other units)?
  *
  * 2) Structure
@@ -136,6 +137,7 @@
 /// Number of times each test should be run before declaring it a success
 #ifndef VSTL_TEST_COUNT
 #	define VSTL_TEST_COUNT 1
+#include <filesystem>
 #endif
 
 /// Should we try to automatically trigger the debugger when an assertion fails?
@@ -163,19 +165,32 @@
 #	define VSTL_USE_ANSI true
 #endif
 
+/// Should VSTL print the current module (source unit)?
+#ifndef VSTL_PRINT_MODULES
+#	define VSTL_PRINT_MODULES false
+#endif
+
 /// Should VSTL be build as submodule (linkable with other units)?
 #ifndef VSTL_SUBMODULE
 #	define VSTL_SUBMODULE false
 #endif
 
 #if VSTL_USE_ANSI
-#	define VSTL_FAILED "\033[31;1mfailed\033[0m"
-#	define VSTL_SKIPPED "\033[33;1mskipped\033[0m"
-#	define VSTL_SUCCESSFUL "\033[32;1msuccessful\033[0m"
+#	define VSTL_COLOR_RED "\033[31;1m"
+#	define VSTL_COLOR_YELLOW "\033[33;1m"
+#	define VSTL_COLOR_GREEN "\033[32;1m"
+#	define VSTL_COLOR_CYAN "\033[36;1m"
+#	define VSTL_COLOR_PURPLE "\033[35;1m"
+#	define VSTL_COLOR_BOLD "\033[1m"
+#	define VSTl_COLOR_RESET "\033[0m"
 #else
-#	define VSTL_FAILED "failed"
-#	define VSTL_SKIPPED "skipped"
-#	define VSTL_SUCCESSFUL "successful"
+#	define VSTL_COLOR_RED ""
+#	define VSTL_COLOR_YELLOW ""
+#	define VSTL_COLOR_GREEN ""
+#	define VSTL_COLOR_CYAN ""
+#	define VSTL_COLOR_PURPLE ""
+#	define VSTL_COLOR_BOLD ""
+#	define VSTl_COLOR_RESET ""
 #endif
 
 // internal platform abstraction macros, don't use :gun:
@@ -201,10 +216,14 @@
 #include <chrono>
 #include <iostream>
 #include <sstream>
+#include <cstring>
 
 #define VSTL_VERSION "3.4"
 
 // internal macros, don't use :gun:
+#define VSTL_FAILED VSTL_COLOR_RED "failed" VSTl_COLOR_RESET
+#define VSTL_SKIPPED VSTL_COLOR_YELLOW "skipped" VSTl_COLOR_RESET
+#define VSTL_SUCCESSFUL VSTL_COLOR_GREEN "successful" VSTl_COLOR_RESET
 #define VSTL_UNEQUAL(va, vb) for(auto __vstl_a__ = (va), __vstl_b__ = (decltype(__vstl_a__)) (vb); __vstl_a__ != __vstl_b__;)
 #define VSTL_BLC ;
 #define VSTL_JOIN(prefix, suffix) prefix##suffix
@@ -221,7 +240,7 @@
 
 /// define a test of the given [name]: TEST(example_test) { /* the test */ }
 #define TEST(name) \
-VSTL_BLC static inline vstl::test VSTL_UNIQUE(__vstl_test_##name##__) = #name+[] (const vstl::test& vstl_self) noexcept(false) -> void
+VSTL_BLC static inline vstl::test VSTL_UNIQUE(__vstl_test_##name##__) = vstl::meta_info{__FILE__, #name}+[] (const vstl::test& vstl_self) noexcept(false) -> void
 
 /// used to defined error handlers (converters), place anywhere in the test file. use like this: HANDLER { CATCH_PTR (my_error_class& err) { FAIL(err.str())  } }
 #define HANDLER \
@@ -408,6 +427,11 @@ namespace vstl {
 	struct test;
 	struct handler;
 
+	struct meta_info {
+		const char* module;
+		const char* name;
+	};
+
 	/// index of the current test, needed by the signal handlers
 	inline size_t index = 0;
 
@@ -510,11 +534,11 @@ namespace vstl {
 
 		using functor = std::function<void(const test& test)>;
 
-		const char* name;
-		const functor func;
+		meta_info meta;
+		functor func;
 
-		test(const char* name, const functor& func)
-		: name(name), func(func) {
+		test(meta_info meta, const functor& func)
+		: meta(meta), func(func) {
 			append(*this);
 		}
 
@@ -536,7 +560,7 @@ namespace vstl {
 			try {
 				call(VSTL_TEST_COUNT);
 			} catch (const test_skip& skip) {
-				out << "Test '" << this->name << "' " VSTL_SKIPPED "!";
+				out << "Test '" << this->meta.name << "' " VSTL_SKIPPED "!";
 
 				if (VSTL_PRINT_SKIP_REASON) {
 					out << " " << skip.what();
@@ -547,11 +571,11 @@ namespace vstl {
 				return true;
 
 			} catch (const test_error& fail) {
-				out << "Test '" << this->name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
+				out << "Test '" << this->meta.name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
 				return false;
 
 			} catch (const std::exception& error) {
-				out << "Test '" << this->name << "' " VSTL_FAILED "! Exception: " << error.what() << std::endl;
+				out << "Test '" << this->meta.name << "' " VSTL_FAILED "! Exception: " << error.what() << std::endl;
 				return false;
 
 			} catch (...) {
@@ -562,7 +586,7 @@ namespace vstl {
 					try {
 						handler.call(ptr);
 					} catch(const test_error& fail) {
-						out << "Test '" << this->name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
+						out << "Test '" << this->meta.name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
 						return false;
 					} catch (...) {
 						// ignore
@@ -571,7 +595,7 @@ namespace vstl {
 
 				// everything has failed us, just try to print *some* reason
 				try {
-					out << "Test '" << this->name << "' " VSTL_FAILED "! Unregistered exception thrown! ";
+					out << "Test '" << this->meta.name << "' " VSTL_FAILED "! Unregistered exception thrown! ";
 					std::rethrow_exception(ptr);
 				} catch (const char* err) {
 					out << "Error: " << err << std::endl;
@@ -587,7 +611,7 @@ namespace vstl {
 			}
 
 			if (VSTL_PRINT_SUCCESS) {
-				out << "Test '" << this->name << "' " VSTL_SUCCESSFUL "!" << std::endl;
+				out << "Test '" << this->meta.name << "' " VSTL_SUCCESSFUL "!" << std::endl;
 			}
 			return true;
 		}
@@ -627,7 +651,7 @@ namespace vstl {
 	inline bool handle_shared_signal(int sig) {
 #ifndef _WIN32
 		if (sig == SIGALRM && fail_on_alarm) {
-			printf("Test '%s' " VSTL_FAILED "! Timeout reached!\n", tests[index].name);
+			printf("Test '%s' " VSTL_FAILED "! Timeout reached!\n", tests[index].meta.name);
 			return false; // skip default print
 		}
 #endif
@@ -648,7 +672,7 @@ namespace vstl {
 
 	inline void signal_handler(int sig) {
 		if (handle_shared_signal(sig)) {
-			print_signal(tests[index].name, sig);
+			print_signal(tests[index].meta.name, sig);
 		}
 
 		VSTL_JMP_SIG(jmp);
@@ -660,7 +684,7 @@ namespace vstl {
 
 	inline void signal_handler(int sig, siginfo_t* si, void* unused) {
 		if (handle_shared_signal(sig)) {
-			print_signal(tests[index].name, sig, reinterpret_cast<int64_t>(si->si_addr));
+			print_signal(tests[index].meta.name, sig, reinterpret_cast<int64_t>(si->si_addr));
 		}
 
 		VSTL_JMP_SIG(jmp);
@@ -749,14 +773,35 @@ namespace vstl {
 
 	/// Invoke all tests
 	inline void run(std::ostream& out) {
+
 		const auto start = std::chrono::steady_clock::now();
+		const char* current_module = "";
 
 		index = 0;
 		successful = 0;
 		failed = 0;
 		skipped = 0;
 
+		// order of static constructor initialization is not guaranteed between compilation units
+		// so that the order of tests sources from multiple modules (units) is constant and deterministic
+		// we sort them by the file path of their origin
+		std::sort(tests.begin(), tests.end(), [] (const test& a, const test& b) {
+			return std::strcmp(a.meta.module, b.meta.module) < 0;
+		});
+
 		for (const test& test : tests) {
+
+			if (VSTL_PRINT_MODULES && std::strcmp(current_module, test.meta.module) != 0) {
+				auto module_path = std::filesystem::relative(test.meta.module);
+				auto module_name = module_path.filename().u8string();
+
+				if (index > 0) {
+					printf("\n");
+				}
+
+				printf(VSTL_COLOR_BOLD "Module: %s" VSTl_COLOR_RESET "\n", (char*) module_name.c_str());
+				current_module = test.meta.module;
+			}
 
 			// if we go into this if a signal was
 			// raised during test execution
@@ -815,8 +860,8 @@ namespace vstl {
  * so the "TEST(name) {}" syntax can be used
  */
 
-inline vstl::test operator +(const char* name, const vstl::test::functor& tester) {
-    return vstl::test {name, tester};
+inline vstl::test operator +(vstl::meta_info info, const vstl::test::functor& tester) {
+    return vstl::test {info, tester};
 }
 
 inline vstl::handler operator +(const char* name, const vstl::handler::functor& handler) {
