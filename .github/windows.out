@@ -1,12 +1,12 @@
 Module: demo-module.cpp
-Test 'vstl_submodule' successful!
+Test 'vstl_submodule' passed!
 
 Module: demo.cpp
 Test 'vstl_check' failed! Error: Expected 2 to be equal 4, vec[1] != 4, on line 25!
 Test 'vstl_fail' failed! Error: Oops, on line 40!
 Test 'vstl_assert' failed! Error: Thief, on line 61!
 Test 'vstl_expect' failed! Error: Expected exception of type std::runtime_error, on line 88!
-Test 'vstl_signal' successful!
+Test 'vstl_signal' passed!
 Test 'vstl_fault' failed! Error: Received SIGSEGV (#11)!
 Test 'vstl_skip' skipped! I don't feel like testing rn, on line 136!
 Test 'vstl_integer_hex' failed! Error: Expected 0xFFFFFF01 (decimal -255) to be equal 0xAB (decimal 171), a != 0xAB, on line 147!
@@ -15,6 +15,6 @@ Test 'vstl_integer_dec' failed! Error: Expected 100 to be equal 200, a != 200, o
 Test 'vstl_integer_oct' failed! Error: Expected 01411 (decimal 777) to be equal 0777 (decimal 511), a != 0777, on line 179!
 Test 'vstl_vector' failed! Error: Expected [1, 2, 3, 4, 5, 6, 7, 8] to be equal [1, 2, 3, 4, 5, 6, 8, 7], values != expected, on line 189!
 Test 'vstl_map' failed! Error: Expected [{2, 5}, {1, 1}, {0, 3}] to be equal [{2, 4}, {1, 1}, {0, 3}], values != expected, on line 199!
-Test 'vstl_final' successful!
+Test 'vstl_final' passed!
 
-Executed 15 tests, 11 failed, 3 succeeded.
+Executed 15 tests, 11 failed, 3 passed.
