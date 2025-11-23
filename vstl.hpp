@@ -223,7 +223,7 @@
 // internal macros, don't use :gun:
 #define VSTL_FAILED VSTL_COLOR_RED "failed" VSTl_COLOR_RESET
 #define VSTL_SKIPPED VSTL_COLOR_YELLOW "skipped" VSTl_COLOR_RESET
-#define VSTL_SUCCESSFUL VSTL_COLOR_GREEN "successful" VSTl_COLOR_RESET
+#define VSTL_SUCCESSFUL VSTL_COLOR_GREEN "passed" VSTl_COLOR_RESET
 #define VSTL_UNEQUAL(va, vb) for(auto __vstl_a__ = (va), __vstl_b__ = (decltype(__vstl_a__)) (vb); __vstl_a__ != __vstl_b__;)
 #define VSTL_BLC ;
 #define VSTL_JOIN(prefix, suffix) prefix##suffix
@@ -438,8 +438,8 @@ namespace vstl {
 	/// number of failed tests
 	inline size_t failed = 0;
 
-	/// number of successful tests (includes skipped tests)
-	inline size_t successful = 0;
+	/// number of passed tests (includes skipped tests)
+	inline size_t passed = 0;
 
 	/// number of skipped tests
 	inline size_t skipped = 0;
@@ -700,13 +700,13 @@ namespace vstl {
 
 	/// output a simple summary line
 	inline void summary(std::ostream& out, const auto& time) {
-		size_t executed = failed + successful;
+		size_t executed = failed + passed;
 		double millis = std::chrono::duration<double, std::milli>(time).count();
 
 		out << std::endl << std::dec << "Executed " << executed << " ";
 		out << (executed == 1 ? "test" : "tests") << ", ";
 		out << failed << " failed, ";
-		out << (successful - skipped) << " succeeded.";
+		out << (passed - skipped) << " passed.";
 
 		if (VSTL_PRINT_TIME) {
 			out << " (time: " << millis << "ms)";
@@ -778,7 +778,7 @@ namespace vstl {
 		const char* current_module = "";
 
 		index = 0;
-		successful = 0;
+		passed = 0;
 		failed = 0;
 		skipped = 0;
 
@@ -818,7 +818,7 @@ namespace vstl {
 			}
 
 			// test completed successfully
-			successful ++;
+			passed ++;
 
 			skip:
 			index ++;
