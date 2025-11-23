@@ -3,6 +3,7 @@
 #define VSTL_PRINT_TIME false
 #define VSTL_PRINT_SKIP_REASON true
 #define VSTL_TRIGGER_DEBUGGER false
+#define VSTL_PRINT_MODULES true
 
 #include "vstl.hpp"
 
