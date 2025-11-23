@@ -137,7 +137,6 @@
 /// Number of times each test should be run before declaring it a success
 #ifndef VSTL_TEST_COUNT
 #	define VSTL_TEST_COUNT 1
-#include <filesystem>
 #endif
 
 /// Should we try to automatically trigger the debugger when an assertion fails?
@@ -217,6 +216,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstring>
+#include <filesystem>
 
 #define VSTL_VERSION "3.4"
 
@@ -537,9 +537,14 @@ namespace vstl {
 		meta_info meta;
 		functor func;
 
-		test(meta_info meta, const functor& func)
-		: meta(meta), func(func) {
+		test(meta_info meta, functor func)
+		: meta(meta), func(std::move(func)) {
 			append(*this);
+		}
+
+		[[nodiscard]]
+		const char* name() const {
+			return meta.name;
 		}
 
 		void call(const size_t count) const {
