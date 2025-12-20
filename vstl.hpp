@@ -175,13 +175,13 @@
 #endif
 
 #if VSTL_USE_ANSI
-#	define VSTL_COLOR_RED "\033[31;1m"
-#	define VSTL_COLOR_YELLOW "\033[33;1m"
-#	define VSTL_COLOR_GREEN "\033[32;1m"
-#	define VSTL_COLOR_CYAN "\033[36;1m"
-#	define VSTL_COLOR_PURPLE "\033[35;1m"
+#	define VSTL_COLOR_RED "\033[31m"
+#	define VSTL_COLOR_YELLOW "\033[33m"
+#	define VSTL_COLOR_GREEN "\033[32m"
+#	define VSTL_COLOR_CYAN "\033[36m"
+#	define VSTL_COLOR_PURPLE "\033[35m"
 #	define VSTL_COLOR_BOLD "\033[1m"
-#	define VSTl_COLOR_RESET "\033[0m"
+#	define VSTL_COLOR_RESET "\033[0m"
 #else
 #	define VSTL_COLOR_RED ""
 #	define VSTL_COLOR_YELLOW ""
@@ -189,8 +189,11 @@
 #	define VSTL_COLOR_CYAN ""
 #	define VSTL_COLOR_PURPLE ""
 #	define VSTL_COLOR_BOLD ""
-#	define VSTl_COLOR_RESET ""
+#	define VSTL_COLOR_RESET ""
 #endif
+
+#define VSTL_COLOR_HIGHLIGHT VSTL_COLOR_RED VSTL_COLOR_BOLD
+#define VSTL_COLOR_LINE_SPEC VSTL_COLOR_BOLD
 
 // internal platform abstraction macros, don't use :gun:
 #ifdef _WIN32
@@ -221,9 +224,9 @@
 #define VSTL_VERSION "3.4"
 
 // internal macros, don't use :gun:
-#define VSTL_FAILED VSTL_COLOR_RED "failed" VSTl_COLOR_RESET
-#define VSTL_SKIPPED VSTL_COLOR_YELLOW "skipped" VSTl_COLOR_RESET
-#define VSTL_SUCCESSFUL VSTL_COLOR_GREEN "passed" VSTl_COLOR_RESET
+#define VSTL_FAILED VSTL_COLOR_RED VSTL_COLOR_BOLD "failed" VSTL_COLOR_RESET
+#define VSTL_SKIPPED VSTL_COLOR_YELLOW VSTL_COLOR_BOLD "skipped" VSTL_COLOR_RESET
+#define VSTL_SUCCESSFUL VSTL_COLOR_GREEN VSTL_COLOR_BOLD "passed" VSTL_COLOR_RESET
 #define VSTL_UNEQUAL(va, vb) for(auto __vstl_a__ = (va), __vstl_b__ = (decltype(__vstl_a__)) (vb); __vstl_a__ != __vstl_b__;)
 #define VSTL_BLC ;
 #define VSTL_JOIN(prefix, suffix) prefix##suffix
@@ -231,7 +234,7 @@
 #define VSTL_UNIQUE(prefix) VSTL_CAT(prefix, __LINE__)
 #define VSTL_STR_VALUE(value) #value
 #define VSTL_TO_STR(macro) VSTL_STR_VALUE(macro)
-#define VSTL_LINE "on line " VSTL_TO_STR(__LINE__)
+#define VSTL_LINE "on line " VSTL_COLOR_LINE_SPEC VSTL_TO_STR(__LINE__) VSTL_COLOR_RESET
 #define VSTL_EXCEPT "Expected exception"
 #define VSTL_RETHROW catch (vstl::test_error& fail) { throw fail; }
 #define VSTL_VTOS(value, hints) + vstl::to_printable(value, hints) +
@@ -268,7 +271,7 @@ ASSERT_MSG(condition, "Expected " #condition " to be true, but it was not")
 
 /// checks if the [va] equals [vb], otherwise fails the test
 #define CHECK(va, vb) \
-VSTL_UNEQUAL(va, vb) FAIL("Expected " VSTL_VTOS(__vstl_a__, vstl::guess_print_hint(#va, #vb)) " to be equal " VSTL_VTOS(__vstl_b__, vstl::guess_print_hint(#va, #vb)) ", " #va " != " #vb)
+VSTL_UNEQUAL(va, vb) FAIL("Expected " VSTL_COLOR_HIGHLIGHT VSTL_VTOS(__vstl_a__, vstl::guess_print_hint(#va, #vb)) VSTL_COLOR_RESET " to be equal " VSTL_COLOR_HIGHLIGHT VSTL_VTOS(__vstl_b__, vstl::guess_print_hint(#va, #vb)) VSTL_COLOR_RESET ", " #va " != " #vb)
 
 /// checks if the following block throws an exception, otherwise fails the test
 #define EXPECT_ANY() \
@@ -296,6 +299,7 @@ namespace vstl {
 
 	struct print_hint {
 		int base = 10;
+		bool uppercase = false;
 	};
 
 	constexpr print_hint guess_print_hint(const std::string_view& one, const std::string_view& two) {
@@ -304,6 +308,15 @@ namespace vstl {
 		if (one.starts_with("0x") || two.starts_with("0x")) hints.base = 16;
 		else if (one.starts_with("0b") || two.starts_with("0b")) hints.base = 2;
 		else if (one.starts_with("0") || two.starts_with("0")) hints.base = 8;
+
+		if (hints.base == 16) {
+			auto check_letter_case = [&] (char c) {
+				if (c >= 'A' && c <= 'Z') hints.uppercase = true;
+			};
+
+			for (const char c : one) check_letter_case(c);
+			for (const char c : two) check_letter_case(c);
+		}
 
 		return hints;
 	}
@@ -352,8 +365,12 @@ namespace vstl {
 
 	template <string_convertible T>
 	std::string to_printable(const T& value, print_hint hint) {
-		if constexpr (std::is_integral_v<T>) {
-			static const char digits[] = "0123456789ABCDEF";
+		if constexpr (std::is_same_v<T, bool>) {
+			return value ? "true" : "false";
+		}
+
+		else if constexpr (std::is_integral_v<T>) {
+			const char* digits = hint.uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
 			const char* base_prefix = "";
 
 			using U = std::make_unsigned<T>::type;
@@ -430,6 +447,10 @@ namespace vstl {
 	struct meta_info {
 		const char* module;
 		const char* name;
+
+		size_t length() const {
+			return strlen(name);
+		}
 	};
 
 	/// index of the current test, needed by the signal handlers
@@ -561,11 +582,12 @@ namespace vstl {
 			}
 		}
 
-		bool run(std::ostream& out) const throw() {
+		bool run(std::ostream& out) const noexcept {
+
 			try {
 				call(VSTL_TEST_COUNT);
 			} catch (const test_skip& skip) {
-				out << "Test '" << this->meta.name << "' " VSTL_SKIPPED "!";
+				out << "Test '" << meta.name << "' " VSTL_SKIPPED "!";
 
 				if (VSTL_PRINT_SKIP_REASON) {
 					out << " " << skip.what();
@@ -576,11 +598,11 @@ namespace vstl {
 				return true;
 
 			} catch (const test_error& fail) {
-				out << "Test '" << this->meta.name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
+				out << "Test '" << meta.name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
 				return false;
 
 			} catch (const std::exception& error) {
-				out << "Test '" << this->meta.name << "' " VSTL_FAILED "! Exception: " << error.what() << std::endl;
+				out << "Test '" << meta.name << "' " VSTL_FAILED "! Exception: " << error.what() << std::endl;
 				return false;
 
 			} catch (...) {
@@ -591,7 +613,7 @@ namespace vstl {
 					try {
 						handler.call(ptr);
 					} catch(const test_error& fail) {
-						out << "Test '" << this->meta.name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
+						out << "Test '" << meta.name << "' " VSTL_FAILED "! Error: " << fail.what() << std::endl;
 						return false;
 					} catch (...) {
 						// ignore
@@ -600,7 +622,7 @@ namespace vstl {
 
 				// everything has failed us, just try to print *some* reason
 				try {
-					out << "Test '" << this->meta.name << "' " VSTL_FAILED "! Unregistered exception thrown! ";
+					out << "Test '" << meta.name << "' " VSTL_FAILED "! Unregistered exception thrown! ";
 					std::rethrow_exception(ptr);
 				} catch (const char* err) {
 					out << "Error: " << err << std::endl;
@@ -616,7 +638,7 @@ namespace vstl {
 			}
 
 			if (VSTL_PRINT_SUCCESS) {
-				out << "Test '" << this->meta.name << "' " VSTL_SUCCESSFUL "!" << std::endl;
+				out << "Test '" << meta.name << "' " VSTL_SUCCESSFUL "!" << std::endl;
 			}
 			return true;
 		}
@@ -776,6 +798,21 @@ namespace vstl {
 
 	}
 
+	/// Get the longest test name
+	inline size_t longest_test_name() {
+		size_t length = 0;
+
+		for (const test& test : tests) {
+			const size_t size = test.meta.length();
+
+			if (size > length) {
+				length = size;
+			}
+		}
+
+		return length;
+	}
+
 	/// Invoke all tests
 	inline void run(std::ostream& out) {
 
@@ -804,7 +841,7 @@ namespace vstl {
 					printf("\n");
 				}
 
-				printf(VSTL_COLOR_BOLD "Module: %s" VSTl_COLOR_RESET "\n", (char*) module_name.c_str());
+				printf(VSTL_COLOR_BOLD "Module: %s" VSTL_COLOR_RESET "\n", (char*) module_name.c_str());
 				current_module = test.meta.module;
 			}
 
