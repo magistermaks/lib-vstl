@@ -1,5 +1,6 @@
 Module: demo-module.cpp
 Test 'vstl_submodule' passed!
+Test 'vstl_string_method' failed! Error: Expected hmm to be equal unset, f1 != f2, on line 37!
 
 Module: demo.cpp
 Test 'vstl_check' failed! Error: Expected 2 to be equal 4, vec[1] != 4, on line 25!
@@ -17,4 +18,4 @@ Test 'vstl_vector' failed! Error: Expected [1, 2, 3, 4, 5, 6, 7, 8] to be equal 
 Test 'vstl_map' failed! Error: Expected [{2, 5}, {1, 1}, {0, 3}] to be equal [{2, 4}, {1, 1}, {0, 3}], values != expected, on line 199!
 Test 'vstl_final' passed!
 
-Executed 15 tests, 11 failed, 3 passed.
+Executed 16 tests, 12 failed, 3 passed.

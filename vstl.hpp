@@ -213,6 +213,7 @@
 #include <csignal>
 #include <csetjmp>
 #include <vector>
+#include <string>
 #include <functional>
 #include <exception>
 #include <chrono>
@@ -329,22 +330,19 @@ namespace vstl {
 	 */
 
 	template <typename T>
-	concept string_convertible = requires(T value) { std::to_string(value); };
-
-	template <typename T>
 	concept string_castable = std::convertible_to<T, std::string>;
 
 	template <typename T>
-	concept string_appendable = requires(T value, std::stringstream ss) { ss << value; } && !string_convertible<T> && !string_castable<T>;
+	concept string_convertible = requires(T value) { std::to_string(value); };
 
 	template <typename T>
-	concept string_direct = string_appendable<T> || string_convertible<T> || string_castable<T>;
+	concept string_appendable = requires(T value, std::stringstream ss) { ss << value; };
 
 	template <typename T>
-	concept iterable_non_direct = requires(T value) { value.cbegin(); value.cend(); } && !string_direct<T>;
+	concept any_pair = requires(T value) { value.first; value.second; };
 
 	template <typename T>
-	concept any_pair = requires(T value) { value.first; value.second; } && !string_direct<T>;
+	concept iterable = requires(T value) { value.cbegin(); value.cend(); };
 
 
 
@@ -355,21 +353,39 @@ namespace vstl {
 
 	template <typename T>
 	std::string to_printable(const T& value, print_hint hint) {
-		return "<non-printable value>";
-	}
 
-	template <any_pair T>
-	std::string to_printable(const T& value, print_hint hint) {
-		return "{" + to_printable(value.first, hint) + ", " + to_printable(value.second, hint) + "}";
-	}
+		// if the value can be cast to string (or is a string already) use that
+		if constexpr (string_castable<T>) {
+			return static_cast<std::string>(value);
+		}
 
-	template <string_convertible T>
-	std::string to_printable(const T& value, print_hint hint) {
+		// check for user defined "to string" style method - str()
+		if constexpr (requires { {value.str()} -> std::convertible_to<std::string>; }) {
+			return static_cast<std::string>(value.str());
+		}
+
+		// check for user defined "to string" style method - string()
+		if constexpr (requires { {value.string()} -> std::convertible_to<std::string>; }) {
+			return static_cast<std::string>(value.string());
+		}
+
+		// check for user defined "to string" style method - to_string()
+		if constexpr (requires { {value.to_string()} -> std::convertible_to<std::string>; }) {
+			return static_cast<std::string>(value.to_string());
+		}
+
+		// check for user defined "to string" style method - toString()
+		if constexpr (requires { {value.toString()} -> std::convertible_to<std::string>; }) {
+			return static_cast<std::string>(value.toString());
+		}
+
+		// custom logic for bool values
 		if constexpr (std::is_same_v<T, bool>) {
 			return value ? "true" : "false";
 		}
 
-		else if constexpr (std::is_integral_v<T>) {
+		// we need to exclude bools explicitly as is_integral includes them, and causes compilers to complain
+		if constexpr (std::is_integral_v<T> && !std::is_same_v<T, bool>) {
 			const char* digits = hint.uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
 			const char* base_prefix = "";
 
@@ -401,37 +417,38 @@ namespace vstl {
 			return base_prefix + result + " (decimal " + std::to_string(value) + ")";
 		}
 
-		return std::to_string(value);
-	}
-
-	template <string_castable T>
-	std::string to_printable(const T& value, print_hint hint) {
-		return value;
-	}
-
-	template <string_appendable T>
-	std::string to_printable(const T& value, print_hint hint) {
-		std::stringstream ss;
-		ss << value;
-		return ss.str();
-	}
-
-	template <iterable_non_direct T>
-	std::string to_printable(const T& value, print_hint hint) {
-		std::string result;
-
-		for (const auto& element : value) {
-			result += to_printable(element, hint);
-			result += ", ";
+		// mostly for user defined operator<< as most other values are already handled above
+		if constexpr (string_appendable<T>) {
+			std::stringstream ss;
+			ss << value;
+			return ss.str();
 		}
 
-		// remove trailing ", "
-		if (!result.empty()) {
-			result.pop_back();
-			result.pop_back();
+		// we check for pairs above lists as pairs can also have the begin()/end() methods, this is needed for maps
+		if constexpr (any_pair<T>) {
+			return "{" + to_printable(value.first, hint) + ", " + to_printable(value.second, hint) + "}";
 		}
 
-		return "[" + result + "]";
+		// as the last thing try printing collections
+		if constexpr (iterable<T>) {
+			std::string result;
+
+			for (const auto& element : value) {
+				result += to_printable(element, hint);
+				result += ", ";
+			}
+
+			// remove trailing ", "
+			if (!result.empty()) {
+				result.pop_back();
+				result.pop_back();
+			}
+
+			return "[" + result + "]";
+		}
+
+		// we don't know how to print this thing...
+		return "<non-printable value>";
 	}
 
 
