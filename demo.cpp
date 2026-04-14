@@ -1,14 +1,12 @@
 
-#define VSTL_USE_ANSI false
-#define VSTL_PRINT_TIME false
-#define VSTL_PRINT_SKIP_REASON true
-#define VSTL_TRIGGER_DEBUGGER false
-#define VSTL_PRINT_MODULES true
-
 #include "vstl.hpp"
 
 #include <thread>
 #include <chrono>
+
+VCONF(print_modules, true);
+VCONF(print_time, false);
+VCONF(print_color, false);
 
 // each test begins with the TEST(name) clause
 // the test names need not be unique
@@ -105,7 +103,7 @@ TEST(vstl_signal) {
 	// you can only expect predefined signals
 	// by default VSTL handles SIGSEGV, SIGILL, SIGFPE, SIGABRT, and SIGTERM
 	EXPECT_SIGNAL(SIGSEGV) {
-		int* ptr = nullptr;
+		volatile int* ptr = nullptr;
 		*ptr = 42;
 	};
 
@@ -121,7 +119,7 @@ TEST(vstl_fault) {
 	// some issues may arise on Windows
 
 	// Error: Received SIGSEGV while trying to access: 0x0!
-	int* ptr = nullptr;
+	volatile int* ptr = nullptr;
 	*ptr = 42;
 
 };
