@@ -412,5 +412,5 @@ namespace vstl {
 
 int main(int argc, const char* argv[]) {
 	vstl::init();
-	return vstl::run_tests(vstl::tests);
+	return vstl::run_tests(vstl::tests) ? 0 : 1;
 }
