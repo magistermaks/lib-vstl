@@ -154,9 +154,14 @@ namespace vstl {
 
 		// order of static constructor initialization is not guaranteed between compilation units
 		// so that the order of tests sources from multiple modules (units) is constant and deterministic
-		// we sort them by the file path of their origin
+		// we sort them by the file path of their origin and line.
 		std::sort(tests.begin(), tests.end(), [] (const Test& a, const Test& b) {
-			return std::strcmp(a.meta.module, b.meta.module) < 0;
+			int srt = std::strcmp(a.meta.module, b.meta.module);
+
+			if (srt < 0) return true;
+			if (srt > 0) return false;
+
+			return a.meta.line - b.meta.line < 0;
 		});
 
 		for (const Test& test : tests) {

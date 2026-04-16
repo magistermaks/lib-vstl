@@ -191,7 +191,7 @@
 
 /// define a test of the given [name]: TEST(example_test) { /* the test */ }
 #define TEST(name) \
-VSTL_BLC VSTL_GLOBAL vstl::Test VSTL_UNIQUE(__vstl_test_##name##__) = vstl::Metadata{__FILE__, #name}+[] (const vstl::Test& vstl_self) noexcept(false) -> void
+VSTL_BLC VSTL_GLOBAL vstl::Test VSTL_UNIQUE(__vstl_test_##name##__) = vstl::Metadata{__FILE__, #name, __LINE__}+[] (const vstl::Test& vstl_self) noexcept(false) -> void
 
 /// used to defined error handlers (converters), place anywhere in the test file. use like this: HANDLER { CATCH_PTR (my_error_class& err) { FAIL(err.str())  } }
 #define HANDLER \
@@ -413,6 +413,7 @@ namespace vstl {
 	struct Metadata {
 		const char* module;
 		const char* name;
+		int64_t line;
 
 		size_t length() const {
 			return strlen(name);
