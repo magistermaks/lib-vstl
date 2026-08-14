@@ -7,6 +7,7 @@
 VCONF(print_modules, true);
 VCONF(print_time, false);
 VCONF(print_color, false);
+VCONF(seed, 42);
 
 // each test begins with the TEST(name) clause
 // the test names need not be unique
@@ -197,6 +198,17 @@ TEST(vstl_map) {
 	CHECK(values, expected);
 
 }
+
+
+TEST(vstl_random) {
+
+	// you can use the self.random class to access a pseudo-random number generator
+	// it is automatically reseeded with the config_seed value each time a test case is run
+	// if config_seed is not set (or is set to 0) one is chosen randomly on startup
+
+	CHECK(vstl_self.random.next(), 10481999410520546993ull);
+
+};
 
 
 TEST(vstl_final) {

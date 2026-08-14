@@ -41,7 +41,8 @@
  *    VCONF(print_passed, true)     - Should VSTL print a log entry when the test is successful?
  *    VCONF(print_time, true)       - Should VSTL print the time taken to run the tests?
  *    VCONF(print_modules, false)   - Should VSTL print the current module (source unit)?
- *    VCONF(print_color, true)      - Should VSTL use color codes when printing?
+ *    VCONF(print_color, true)      - Should VSTL use ANSI color codes when printing?
+ *    VCONF(seed, 0)                - The seed to use for all RNGs, by default (when set to 0) a random one is chosen at startup.
  *
  * 2) Structure
  *
@@ -160,6 +161,7 @@
 #include <sstream>
 #include <cstring>
 #include <filesystem>
+#include <random>
 
 #define VSTL_VERSION "3.4"
 
@@ -410,6 +412,7 @@ namespace vstl {
 	struct Test;
 	struct Handler;
 
+	// per test metadata
 	struct Metadata {
 		const char* module;
 		const char* name;
@@ -420,6 +423,35 @@ namespace vstl {
 		}
 	};
 
+	// per test pseudo random number generator
+	class Random {
+
+		private:
+
+			using generator = std::linear_congruential_engine<
+				uint64_t,
+				6364136223846793005,
+				1442695040888963407,
+				0ull
+			>;
+
+			mutable generator rng;
+
+		public:
+
+			// called by VSTL before the test is started
+			void set_seed(uint64_t seed) {
+				rng.seed(seed);
+			}
+
+			// get next random number
+			uint64_t next() const {
+				return rng();
+			}
+
+	};
+
+	inline uint64_t config_seed = 0;
 	inline int config_repeats = 1;
 	inline bool config_print_time = true;
 	inline bool config_print_skip = true;
@@ -482,12 +514,13 @@ namespace vstl {
 
 	struct Test final {
 
-		using functor = std::function<void(const Test& test)>;
+		using Functor = std::function<void(const Test& test)>;
 
 		Metadata meta;
-		functor func;
+		Random random;
+		Functor func;
 
-		Test(Metadata meta, functor func)
+		Test(Metadata meta, Functor func)
 		: meta(meta), func(std::move(func)) {
 			register_test(*this);
 		}
@@ -540,7 +573,7 @@ namespace vstl {
  * so the "TEST(name) {}" syntax can be used
  */
 
-inline vstl::Test operator +(vstl::Metadata info, const vstl::Test::functor& tester) {
+inline vstl::Test operator +(vstl::Metadata info, const vstl::Test::Functor& tester) {
 	return vstl::Test {info, tester};
 }
 
