@@ -1,21 +1,24 @@
+Running with seed: 42
+
 Module: demo-module.cpp
 Test 'vstl_submodule' passed!
 Test 'vstl_string_method' failed! Error: Expected hmm to be equal unset, f1 != f2, on line 27!
 
 Module: demo.cpp
-Test 'vstl_check' failed! Error: Expected 2 to be equal 4, vec[1] != 4, on line 23!
-Test 'vstl_fail' failed! Error: Oops, on line 38!
-Test 'vstl_assert' failed! Error: Thief, on line 59!
-Test 'vstl_expect' failed! Error: Expected exception of type std::runtime_error, on line 86!
+Test 'vstl_check' failed! Error: Expected 2 to be equal 4, vec[1] != 4, on line 24!
+Test 'vstl_fail' failed! Error: Oops, on line 39!
+Test 'vstl_assert' failed! Error: Thief, on line 60!
+Test 'vstl_expect' failed! Error: Expected exception of type std::runtime_error, on line 87!
 Test 'vstl_signal' passed!
 Test 'vstl_fault' failed! Received SIGSEGV (#11)!
-Test 'vstl_skip' skipped! I don't feel like testing rn, on line 134!
-Test 'vstl_integer_hex' failed! Error: Expected 0xFFFFFF01 (decimal -255) to be equal 0xAB (decimal 171), a != 0xAB, on line 145!
-Test 'vstl_integer_bin' failed! Error: Expected 0b101 (decimal 5) to be equal 0b101000 (decimal 40), a != 0b101000, on line 157!
-Test 'vstl_integer_dec' failed! Error: Expected 100 to be equal 200, a != 200, on line 167!
-Test 'vstl_integer_oct' failed! Error: Expected 01411 (decimal 777) to be equal 0777 (decimal 511), a != 0777, on line 177!
-Test 'vstl_vector' failed! Error: Expected [1, 2, 3, 4, 5, 6, 7, 8] to be equal [1, 2, 3, 4, 5, 6, 8, 7], values != expected, on line 187!
-Test 'vstl_map' failed! Error: Expected [{2, 5}, {1, 1}, {0, 3}] to be equal [{2, 4}, {1, 1}, {0, 3}], values != expected, on line 197!
+Test 'vstl_skip' skipped! I don't feel like testing rn, on line 135!
+Test 'vstl_integer_hex' failed! Error: Expected 0xFFFFFF01 (decimal -255) to be equal 0xAB (decimal 171), a != 0xAB, on line 146!
+Test 'vstl_integer_bin' failed! Error: Expected 0b101 (decimal 5) to be equal 0b101000 (decimal 40), a != 0b101000, on line 158!
+Test 'vstl_integer_dec' failed! Error: Expected 100 to be equal 200, a != 200, on line 168!
+Test 'vstl_integer_oct' failed! Error: Expected 01411 (decimal 777) to be equal 0777 (decimal 511), a != 0777, on line 178!
+Test 'vstl_vector' failed! Error: Expected [1, 2, 3, 4, 5, 6, 7, 8] to be equal [1, 2, 3, 4, 5, 6, 8, 7], values != expected, on line 188!
+Test 'vstl_map' failed! Error: Expected [{2, 5}, {1, 1}, {0, 3}] to be equal [{2, 4}, {1, 1}, {0, 3}], values != expected, on line 198!
+Test 'vstl_random' passed!
 Test 'vstl_final' passed!
 
-Executed 16 tests, 12 failed, 3 passed.
+Executed 17 tests, 12 failed, 4 passed.

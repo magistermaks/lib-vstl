@@ -62,7 +62,11 @@ namespace vstl {
 		}
 	}
 
-	static Result test_once(const Test& test) {
+	static Result test_once(Test& test) {
+
+		// seed both the per-test random generator and the global C one
+		test.random.set_seed(config_seed);
+		srand(config_seed);
 
 		// if we go into this then a deadly signal was raised during test execution
 		if (VSTL_JMP_SET(jmp)) {
@@ -123,7 +127,7 @@ namespace vstl {
 
 	}
 
-	static Result test_times(const Test& test, int count) {
+	static Result test_times(Test& test, int count) {
 		for (int i = 0; i < count; i ++) {
 			const Result res = test_once(test);
 
@@ -137,6 +141,14 @@ namespace vstl {
 	}
 
 	static bool run_tests(std::vector<Test>& tests) {
+
+		// if no seed is set pick one at random
+		if (config_seed == 0) {
+			std::random_device dev;
+			config_seed = dev();
+		}
+
+		printf("Running with seed: %lu\n\n", config_seed);
 
 		const char* str_passed = config_print_color ? VSTL_COLOR_PASSED : "passed";
 		const char* str_skipped = config_print_color ? VSTL_COLOR_SKIPPED : "skipped";
@@ -164,7 +176,7 @@ namespace vstl {
 			return a.meta.line - b.meta.line < 0;
 		});
 
-		for (const Test& test : tests) {
+		for (Test& test : tests) {
 
 			if (config_print_modules && std::strcmp(current_module, test.meta.module) != 0) {
 				auto module_path = std::filesystem::relative(test.meta.module);
@@ -210,7 +222,7 @@ namespace vstl {
 
 		if (one.starts_with("0x") || two.starts_with("0x")) hints.base = 16;
 		else if (one.starts_with("0b") || two.starts_with("0b")) hints.base = 2;
-		else if (one.starts_with("0") || two.starts_with("0")) hints.base = 8;
+		else if (one.starts_with('0') || two.starts_with('0')) hints.base = 8;
 
 		if (hints.base == 16) {
 			auto check_letter_case = [&] (char c) {
