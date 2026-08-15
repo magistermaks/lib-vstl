@@ -1,5 +1,6 @@
 
 #include "vstl.hpp"
+#include "args.hpp"
 
 #define VSTL_UNKNOWN_SIGNAL_NAME "unknown signal"
 
@@ -213,6 +214,35 @@ namespace vstl {
 		return failed == 0;
 	}
 
+	static void load_config(const ProgramArguments& args) {
+
+		if (args.get_string("help").has_value()) {
+			printf("Usage: %s [OPTIONS]\n", args.program().c_str());
+			printf("VSTL test application, %lu tests loaded\n\n", tests.size());
+
+			printf("OPTIONS:\n");
+			printf(" --seed             <int>  [= %d] \n", config_seed);
+			printf(" --repeats          <int>  [= %d] \n", config_repeats);
+			printf(" --trigger-debugger <bool> [= %d] \n", config_trigger_debugger);
+			printf(" --print-time       <bool> [= %d] \n", config_print_time);
+			printf(" --print-skip       <bool> [= %d] \n", config_print_skip);
+			printf(" --print-passed     <bool> [= %d] \n", config_print_passed);
+			printf(" --print-modules    <bool> [= %d] \n", config_print_modules);
+			printf(" --print-color      <bool> [= %d] \n", config_print_color);
+
+			exit(0);
+		}
+
+		config_seed = args.get_int("seed").value_or(config_seed);
+		config_repeats = args.get_int("repeats").value_or(config_repeats);
+		config_print_time = args.get_bool("print-time").value_or(config_print_time);
+		config_print_skip = args.get_bool("print-skip").value_or(config_print_skip);
+		config_print_passed = args.get_bool("print-passed").value_or(config_print_passed);
+		config_trigger_debugger = args.get_bool("trigger-debugger").value_or(config_trigger_debugger);
+		config_print_modules = args.get_bool("print-modules").value_or(config_print_modules);
+		config_print_color = args.get_bool("print-color").value_or(config_print_color);
+	}
+
 	/*
 	 * General Platform-Independent API Implementation
 	 */
@@ -423,6 +453,9 @@ namespace vstl {
  */
 
 int main(int argc, const char* argv[]) {
+	ProgramArguments args {argc, argv};
+	vstl::load_config(args);
+
 	vstl::init();
 	return vstl::run_tests(vstl::tests) ? 0 : 1;
 }
