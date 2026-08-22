@@ -2,9 +2,19 @@
 #include "vstl.hpp"
 #include "args.hpp"
 
+#if defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))
+#   define VSTL_SUBPROCESS true
+#	include <sys/wait.h>
+#	include <sys/mman.h>
+#else
+#   define VSTL_SUBPROCESS false
+#endif
+
 #define VSTL_UNKNOWN_SIGNAL_NAME "unknown signal"
 
 namespace vstl {
+
+	static bool do_fork = false;
 
 	static thread_local volatile int received_signal_number;
 	static thread_local volatile uintptr_t received_signal_address;
@@ -63,17 +73,7 @@ namespace vstl {
 		}
 	}
 
-	static Result test_once(Test& test) {
-
-		// seed both the per-test random generator and the global C one
-		test.random.set_seed(config_seed);
-		srand(config_seed);
-
-		// if we go into this then a deadly signal was raised during test execution
-		if (VSTL_JMP_SET(jmp)) {
-			return {FAILED, get_received_signal_message()};
-		}
-
+	static Result call_test(Test& test) {
 		try {
 			test.func(test);
 		} catch (const TestSkip& skip) {
@@ -114,6 +114,22 @@ namespace vstl {
 			}
 		}
 
+		return {PASSED};
+	}
+
+	static Result test_once(Test& test) {
+
+		// seed both the per-test random generator and the global C one
+		test.random.set_seed(config_seed);
+		srand(config_seed);
+
+		// if we go into this then a deadly signal was raised during test execution
+		if (VSTL_JMP_SET(jmp)) {
+			return {FAILED, get_received_signal_message()};
+		}
+
+		const Result result = call_test(test);
+
 		// remove timeout
 		set_timeout(0);
 
@@ -124,7 +140,7 @@ namespace vstl {
 			exit(1);
 		}
 
-		return {PASSED};
+		return result;
 
 	}
 
@@ -139,6 +155,54 @@ namespace vstl {
 		}
 
 		return {PASSED};
+	}
+
+
+	static Result test_times_subprocess(Test& test, int count) {
+#if VSTL_SUBPROCESS
+		uint64_t size = getpagesize();
+		uint64_t msg_size = size * 8;
+
+		Status* status_buffer = static_cast<Status*>(mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
+		char* message_buffer = static_cast<char*>(mmap(nullptr, msg_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
+
+		memset(message_buffer, 0, size);
+		*status_buffer = FAILED;
+
+		pid_t pid = fork();
+
+		if (pid == -1) {
+			printf("VSTL unable to fork!\n");
+			exit(1);
+		}
+
+		if (pid == 0) {
+			Result result = test_times(test, count);
+
+			size_t length = std::min(result.message.length() + 1, msg_size);
+			memcpy(message_buffer, result.message.c_str(), length);
+			message_buffer[msg_size - 1] = 0;
+
+			*status_buffer = result.status;
+
+			fflush(stdout);
+			fflush(stderr);
+			exit(0);
+		}
+
+		int stat;
+		waitpid(pid, &stat, 0);
+
+		Result result {*status_buffer, message_buffer};
+
+		munmap(status_buffer, size);
+		munmap(message_buffer, msg_size);
+
+		return result;
+
+#else
+		return test_times(test, count);
+#endif
 	}
 
 	static bool run_tests(std::vector<Test>& tests) {
@@ -191,8 +255,12 @@ namespace vstl {
 				current_module = test.meta.module;
 			}
 
+			auto tester = do_fork
+				? test_times_subprocess
+				: test_times;
+
 			first = false;
-			Result res = test_times(test, config_repeats);
+			Result res = tester(test, config_repeats);
 
 			if (config_print_passed && res.status == PASSED) {
 				printf("Test '%s' %s!\n", test.meta.name, str_passed);
@@ -233,6 +301,7 @@ namespace vstl {
 			printf(" --print-passed     <bool> [= %s] \n", btos(config_print_passed));
 			printf(" --print-modules    <bool> [= %s] \n", btos(config_print_modules));
 			printf(" --print-color      <bool> [= %s] \n", btos(config_print_color));
+			printf(" --fork             <bool> [= %s] (experimental)\n", btos(do_fork));
 
 			exit(0);
 		}
@@ -245,6 +314,13 @@ namespace vstl {
 		config_trigger_debugger = args.get_bool("trigger-debugger").value_or(config_trigger_debugger);
 		config_print_modules = args.get_bool("print-modules").value_or(config_print_modules);
 		config_print_color = args.get_bool("print-color").value_or(config_print_color);
+		do_fork = args.get_bool("fork").value_or(do_fork);
+
+		if (do_fork && !VSTL_SUBPROCESS) {
+			printf("Running in fork mode not supported on this platform!\n");
+			exit(1);
+		}
+
 	}
 
 	/*
