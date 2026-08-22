@@ -44,6 +44,9 @@
  *    VCONF(print_color, true)      - Should VSTL use ANSI color codes when printing?
  *    VCONF(seed, 0)                - The seed to use for all RNGs, by default (when set to 0) a random one is chosen at startup.
  *
+ *    All VSTL configs can be overridden at runtime using program arguments, run the final test executable
+ *    with --help to see a list of options. For example `--seed 42` can be used to override the seed for the specific run.
+ *
  * 2) Structure
  *
  *    Each test executable that is to use the VSTL framework must include the
@@ -54,7 +57,7 @@
  *    #include <vstl.hpp>
  *
  *    // optional settings, they are global and apply to all files linked together
- *    // VCONF(retries, 2);
+ *    // VCONF(repeats, 2);
  *
  *    TEST(any_test_name) {
  *        // test itself
@@ -76,7 +79,7 @@
  *
  *    SKIP(reason)
  *        This one is not an assertion, but you can use it at any point to SKIP the test with a
- *        custom message. That message will only be printed if the `VSTL_PRINT_SKIP_REASON` setting
+ *        custom message. That message will only be printed if the `print_skip` setting
  *        was enabled. It can be used to disable environment dependant tests.
  *
  *    ASSERT(condition)
@@ -99,7 +102,7 @@
  *    EXPECT_THROW(type) {}
  *        Check if exception of type `type` is thrown (throw X;) in the following code block otherwise FAIL the test.
  *        This can include any type, including sts::exception and non-standard exception types (such as primitives and custom types).
- *        For just check if anything was throw see `EXPECT_ANY`, and to check if a POSIX signal was raised see `EXPECT_SIGNAL`.
+ *        For just checking if anything was throw see `EXPECT_ANY`, and to check if a POSIX signal was raised see `EXPECT_SIGNAL`.
  *
  *    EXPECT_SIGNAL(signum) {}
  *        Check if the specified signal (one of, SIGSEGV, SIGILL, SIGFPE, SIGABRT, SIGTERM, and SIGBUS) was raised in the following
