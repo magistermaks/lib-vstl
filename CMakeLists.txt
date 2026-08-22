@@ -12,9 +12,21 @@ add_library(vstl
 
 target_include_directories(vstl PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-add_executable(vstl_demo
-		demo.cpp
-		demo-module.cpp
-)
+if(PROJECT_IS_TOP_LEVEL)
 
-target_link_libraries(vstl_demo PRIVATE vstl)
+	add_executable(vstl_demo
+			demo.cpp
+			demo-module.cpp
+	)
+
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+		target_compile_options(vstl_demo PUBLIC
+				-Wall
+				-Wextra
+				-pedantic
+		)
+	endif()
+
+	target_link_libraries(vstl_demo PRIVATE vstl)
+
+endif()

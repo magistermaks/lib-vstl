@@ -153,6 +153,7 @@
 #	define VSTL_JMP_SET(jmp) sigsetjmp(jmp, 0xffffffff)
 #endif
 
+#include <cinttypes>
 #include <csignal>
 #include <csetjmp>
 #include <functional>
@@ -193,7 +194,7 @@
 
 /// define a test of the given [name]: TEST(example_test) { /* the test */ }
 #define TEST(name) \
-VSTL_BLC VSTL_GLOBAL vstl::Test VSTL_UNIQUE(__vstl_test_##name##__) = vstl::Metadata{__FILE__, #name, __LINE__}+[] (const vstl::Test& vstl_self) noexcept(false) -> void
+VSTL_BLC VSTL_GLOBAL vstl::Test VSTL_UNIQUE(__vstl_test_##name##__) = vstl::Metadata{__FILE__, #name, __LINE__}+[] ([[maybe_unused]] const vstl::Test& vstl_self) noexcept(false) -> void
 
 /// used to defined error handlers (converters), place anywhere in the test file. use like this: HANDLER { CATCH_PTR (my_error_class& err) { FAIL(err.str())  } }
 #define HANDLER \
@@ -481,7 +482,7 @@ namespace vstl {
 
 	/*
 	 * The vstl::handler class automatically registers itself to the handlers vector
-	 * upon construction, it contains logic to translate custom exceptions and rethow them as TestError
+	 * upon construction, it contains logic to translate custom exceptions and rethrow them as TestError
 	 */
 
 	void register_handler(const Handler& handler);
@@ -577,7 +578,7 @@ inline vstl::Test operator +(vstl::Metadata info, const vstl::Test::Functor& tes
 	return vstl::Test {info, tester};
 }
 
-inline vstl::Handler operator +(const char* name, const vstl::Handler::functor& handler) {
+inline vstl::Handler operator +(const char*, const vstl::Handler::functor& handler) {
 	return vstl::Handler {handler};
 }
 

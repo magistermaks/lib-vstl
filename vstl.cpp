@@ -220,15 +220,19 @@ namespace vstl {
 			printf("Usage: %s [OPTIONS]\n", args.program().c_str());
 			printf("VSTL test application, %lu tests loaded\n\n", tests.size());
 
+			auto btos = [] (bool flag) -> const char* {
+				return flag ? "true" : "false";
+			};
+
 			printf("OPTIONS:\n");
-			printf(" --seed             <int>  [= %d] \n", config_seed);
+			printf(" --seed             <int>  [= %" PRIu64 "] \n", config_seed);
 			printf(" --repeats          <int>  [= %d] \n", config_repeats);
-			printf(" --trigger-debugger <bool> [= %d] \n", config_trigger_debugger);
-			printf(" --print-time       <bool> [= %d] \n", config_print_time);
-			printf(" --print-skip       <bool> [= %d] \n", config_print_skip);
-			printf(" --print-passed     <bool> [= %d] \n", config_print_passed);
-			printf(" --print-modules    <bool> [= %d] \n", config_print_modules);
-			printf(" --print-color      <bool> [= %d] \n", config_print_color);
+			printf(" --trigger-debugger <bool> [= %s] \n", btos(config_trigger_debugger));
+			printf(" --print-time       <bool> [= %s] \n", btos(config_print_time));
+			printf(" --print-skip       <bool> [= %s] \n", btos(config_print_skip));
+			printf(" --print-passed     <bool> [= %s] \n", btos(config_print_passed));
+			printf(" --print-modules    <bool> [= %s] \n", btos(config_print_modules));
+			printf(" --print-color      <bool> [= %s] \n", btos(config_print_color));
 
 			exit(0);
 		}

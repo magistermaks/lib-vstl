@@ -32,7 +32,7 @@ TEST(vstl_fail) {
 	// you can use the FAIL macro to manually
 	// fail the test with a custom message, like this:
 
-	if (bool oops = true) {
+	if (true) {
 
 		// oh no! will print this message:
 		// Error: Oops!
