@@ -167,8 +167,6 @@
 #include <filesystem>
 #include <random>
 
-#define VSTL_VERSION "3.4"
-
 // internal macros, don't use :gun:
 #define VSTL_COLOR_FAILED VSTL_COLOR_RED VSTL_COLOR_BOLD "failed" VSTL_COLOR_RESET
 #define VSTL_COLOR_SKIPPED VSTL_COLOR_YELLOW VSTL_COLOR_BOLD "skipped" VSTL_COLOR_RESET
