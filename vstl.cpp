@@ -1,11 +1,10 @@
 
 #include "vstl.hpp"
 #include "args.hpp"
+#include <map>
 
 #if defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))
 #   define VSTL_SUBPROCESS true
-#	include <sys/wait.h>
-#	include <sys/mman.h>
 #else
 #   define VSTL_SUBPROCESS false
 #endif
@@ -13,7 +12,6 @@
 #define VSTL_UNKNOWN_SIGNAL_NAME "unknown signal"
 
 namespace vstl {
-
 	static bool do_fork = false;
 
 	static thread_local volatile int received_signal_number;
@@ -28,6 +26,7 @@ namespace vstl {
 	static const char* get_signal_name(int signum);
 	static std::string get_signal_message(int signum, uint64_t address, bool include_address);
 	static std::string get_received_signal_message();
+	static size_t get_tracked_memory_usage();
 
 	/*
 	 * Implementation of local static functions
@@ -74,6 +73,8 @@ namespace vstl {
 	}
 
 	static Result call_test(Test& test) {
+		int64_t before = get_tracked_memory_usage();
+
 		try {
 			test.func(test);
 		} catch (const TestSkip& skip) {
@@ -112,6 +113,12 @@ namespace vstl {
 			} catch (...) {
 				return {FAILED, "Unknown exception thrown!"};
 			}
+		}
+
+		int64_t after = get_tracked_memory_usage();
+
+		if (after > before) {
+			return {FAILED, "Leaked " + std::to_string(after - before) + " bytes of memory"};
 		}
 
 		return {PASSED};
@@ -157,53 +164,7 @@ namespace vstl {
 		return {PASSED};
 	}
 
-
-	static Result test_times_subprocess(Test& test, int count) {
-#if VSTL_SUBPROCESS
-		uint64_t size = getpagesize();
-		uint64_t msg_size = size * 8;
-
-		Status* status_buffer = static_cast<Status*>(mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
-		char* message_buffer = static_cast<char*>(mmap(nullptr, msg_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
-
-		memset(message_buffer, 0, size);
-		*status_buffer = FAILED;
-
-		pid_t pid = fork();
-
-		if (pid == -1) {
-			printf("VSTL unable to fork!\n");
-			exit(1);
-		}
-
-		if (pid == 0) {
-			Result result = test_times(test, count);
-
-			size_t length = std::min(result.message.length() + 1, msg_size);
-			memcpy(message_buffer, result.message.c_str(), length);
-			message_buffer[msg_size - 1] = 0;
-
-			*status_buffer = result.status;
-
-			fflush(stdout);
-			fflush(stderr);
-			exit(0);
-		}
-
-		int stat;
-		waitpid(pid, &stat, 0);
-
-		Result result {*status_buffer, message_buffer};
-
-		munmap(status_buffer, size);
-		munmap(message_buffer, msg_size);
-
-		return result;
-
-#else
-		return test_times(test, count);
-#endif
-	}
+	static Result test_times_subprocess(Test& test, int count);
 
 	static bool run_tests(std::vector<Test>& tests) {
 
@@ -372,6 +333,8 @@ namespace vstl {
 		return config_print_color ? escape : "";
 	}
 
+}
+
 	/*
 	 * region Microsoft Windows Implementation
 	 */
@@ -380,6 +343,17 @@ namespace vstl {
 #define WIN32_LEAN_AND_MEAN
 #include <debugapi.h>
 #include <errhandlingapi.h>
+
+namespace vstl {
+
+	static size_t get_tracked_memory_usage() {
+		return 0;
+	}
+
+	static Result test_times_subprocess(Test& test, int count) {
+		// no fork for you on Windows!
+		return test_times(test, count);
+	}
 
 	static void signal_handler(int sig) {
 		received_timer_alarm = false;
@@ -434,6 +408,7 @@ namespace vstl {
 		signal(signum, signal_handler);
 	}
 
+}
 #endif
 
 	/*
@@ -442,6 +417,183 @@ namespace vstl {
 
 #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
 #include <sys/time.h>
+#include <sys/wait.h>
+#include <sys/mman.h>
+#include <dlfcn.h>
+
+enum struct Origin {
+	C,
+	CPP,
+};
+
+struct AllocationInfo {
+	Origin origin;
+	size_t size;
+};
+
+static void* std_malloc(size_t size) {
+	static auto function = reinterpret_cast<void*(*)(size_t)>(dlsym(RTLD_NEXT, "malloc"));
+	return function(size);
+}
+
+static void std_free(void* ptr) {
+	static auto function = reinterpret_cast<void(*)(void*)>(dlsym(RTLD_NEXT, "free"));
+	return function(ptr);
+}
+
+namespace {
+
+	template <class T>
+	struct InternalAllocator {
+		using value_type = T;
+		using size_type = std::size_t;
+		using difference_type = std::ptrdiff_t;
+		using propagate_on_container_move_assignment  = std::true_type;
+
+		T* allocate(size_type n, const void* hint = 0) {
+			return static_cast<T*>(std_malloc(n * sizeof(T)));
+		}
+
+		void deallocate(T* p, size_type n) { std_free(p); }
+		size_type max_size() const { return size_type(std::numeric_limits<unsigned int>::max() / sizeof(T)); }
+		void construct(T* p, const T& value) { _construct(p, value); }
+		void destroy(T* p) { _destroy(p); }
+	};
+
+	template<class T, class U>
+	bool operator==(const InternalAllocator<T>&, const InternalAllocator<U>&) noexcept { return true; }
+
+	template<class T, class U>
+	bool operator!=(const InternalAllocator<T>&, const InternalAllocator<U>&) noexcept { return false; }
+
+	template <typename K, typename V>
+using InternalMap = std::map<K, V, std::less<>, InternalAllocator<std::pair<const K, V>>>;
+
+	static InternalMap<void*, AllocationInfo>* allocations = nullptr;
+
+	void* managed_malloc(size_t size, Origin origin) {
+
+		void* ptr = std_malloc(size);
+
+		if (allocations == nullptr) {
+			allocations = static_cast<decltype(allocations)>(std_malloc(sizeof(decltype(*allocations))));
+			std::construct_at(allocations);
+		}
+
+		(*allocations)[ptr] = {
+			.origin = origin,
+			.size = size
+		};
+
+		return ptr;
+	}
+
+	void managed_free(void* ptr, Origin origin) {
+
+		if (allocations == nullptr) {
+			allocations = static_cast<decltype(allocations)>(std_malloc(sizeof(decltype(*allocations))));
+			std::construct_at(allocations);
+		}
+
+		auto it = allocations->find(ptr);
+
+		if (it == allocations->end()) {
+			fprintf(stderr, "[VSTL] Called free() on a pointer (%p) to unallocated memory!\n", ptr);
+			return;
+		}
+
+		AllocationInfo info = it->second;
+		allocations->erase(it);
+
+		if (info.origin != origin) {
+			const char* free = origin == Origin::C ? "free()" : "delete";
+			const char* malloc = origin == Origin::C ? "malloc()" : "new";
+
+			fprintf(stderr, "[VSTL] Called %s on a pointer (%p) allocated with %s!\n", free, ptr, malloc);
+		}
+
+		return std_free(ptr);
+	}
+
+}
+
+// libc malloc() overwrite
+void* malloc(size_t size) {
+	return managed_malloc(size, Origin::C);
+}
+
+// libc free() overwrite
+void free(void* ptr) {
+	return managed_free(ptr, Origin::C);
+}
+
+// libc++ new/new[] overwrite
+void* operator new(size_t size) {
+	return managed_malloc(size, Origin::CPP);
+}
+
+// libc++ delete/delete[] overwrite
+void operator delete(void* ptr) {
+	return managed_free(ptr, Origin::CPP);
+}
+
+namespace vstl {
+
+	static size_t get_tracked_memory_usage() {
+		size_t sum = 0;
+
+		if (!allocations) {
+			return 0;
+		}
+
+		for (auto& pair : *allocations) {
+			sum += pair.second.size;
+		}
+
+		return sum;
+	}
+
+	static Result test_times_subprocess(Test& test, int count) {
+		uint64_t size = getpagesize();
+		uint64_t msg_size = size * 8;
+
+		Status* status_buffer = static_cast<Status*>(mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
+		char* message_buffer = static_cast<char*>(mmap(nullptr, msg_size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0));
+
+		memset(message_buffer, 0, size);
+		*status_buffer = FAILED;
+
+		pid_t pid = fork();
+
+		if (pid == -1) {
+			printf("VSTL unable to fork!\n");
+			exit(1);
+		}
+
+		if (pid == 0) {
+			Result result = test_times(test, count);
+
+			size_t length = std::min(result.message.length() + 1, msg_size);
+			memcpy(message_buffer, result.message.c_str(), length);
+			message_buffer[msg_size - 1] = 0;
+
+			*status_buffer = result.status;
+
+			fflush(stdout);
+			fflush(stderr);
+			exit(0);
+		}
+
+		int stat;
+		waitpid(pid, &stat, 0);
+
+		Result result {*status_buffer, message_buffer};
+
+		munmap(status_buffer, size);
+		munmap(message_buffer, msg_size);
+
+		return result;
+	}
 
 	void trap() {
 		raise(SIGTRAP);
@@ -525,8 +677,8 @@ namespace vstl {
 		sigaction(signum, &action, nullptr);
 	}
 
-#endif
 }
+#endif
 
 /*
  * Entrypoint
